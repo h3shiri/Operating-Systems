@@ -6,7 +6,7 @@ all_cpp = osm.cpp
 default: clean libosm.a
 
 osm.o: osm.cpp osm.h
-	$(CC) $(flags) -c osm.cpp -o osm.o
+	$(CC) $(flags) -c osm.cpp osm.h -o osm.o
 
 libosm.a: osm.o
 	$(AR) $(ARFLAGS) $@ $^

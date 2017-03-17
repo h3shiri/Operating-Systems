@@ -171,7 +171,10 @@ timeMeasurmentStructure measureTimes (unsigned int operation_iterations,
     else
     {
         // An error due to the instruction time being zero.
-       return -1; 
+        int ERROR = -1;
+        timeMeasures->functionInstructionRatio = ERROR;
+        timeMeasures->trapInstructionRatio = ERROR;
+        timeMeasures->diskInstructionRatio = ERROR;
     }
     return *timeMeasures;
 }
