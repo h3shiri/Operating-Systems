@@ -9,7 +9,7 @@ osm.o: osm.cpp osm.h
 	$(CC) $(flags) -c osm.cpp -o osm.o
 
 libosm.a: osm.o
-	$(CC) $(flags) osm.o -o libosm.a
+	$(AR) $(ARFLAGS) $@ $^
 
 tar: Makefile README $(all_headers) $(all_cpp)
 	tar -cvf ex1.tar Makefile README $(all_headers) $(all_cpp)
