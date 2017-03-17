@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <tgmath.h>
 #include <sys/fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include "osm.h"
 
