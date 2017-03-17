@@ -2,7 +2,9 @@
 // Created by Shiri on 17/03/2017.
 //
 
-
+#include <iostream>
+#include <string>
+#include <sstream>
 #include <sys/time.h>
 #include <tgmath.h>
 #include <sys/fcntl.h>
@@ -38,7 +40,8 @@ double osm_operation_time(unsigned int iterations)
         timersub(&sT, &eT, &delta);
         totalTime += delta.tv_usec + delta.tv_sec * pow(10, 6); // time in usec
     }
-    return (double) (totalTime / iterations) * 1000;
+    // std::cout << delta.tv_usec << std::endl;
+    return (double) (totalTime / iterations) *-1000;
 }
 
 void dummyFoo()
@@ -72,7 +75,7 @@ double osm_function_time(unsigned int iterations)
         timersub(&sT, &eT, &delta);
         totalTime += delta.tv_usec + delta.tv_sec * pow(10, 6); // time in usec
     }
-    return (double) (totalTime / iterations) * 1000;
+    return (double) (totalTime / iterations) * -1000;
 }
 
 
@@ -103,7 +106,7 @@ double osm_syscall_time(unsigned int iterations)
         timersub(&sT, &eT, &delta);
         totalTime += delta.tv_usec + delta.tv_sec * pow(10, 6); // time in usec
     }
-    return (double) (totalTime / iterations) * 1000;
+    return (double) (totalTime / iterations) * -1000;
 }
 
 size_t currBlockSize(){
@@ -143,7 +146,7 @@ double osm_disk_time(unsigned int iterations)
         timersub(&sT, &eT, &delta);
         totalTime += delta.tv_usec + delta.tv_sec * pow(10, 6); // time in usec
     }
-    return (double) (totalTime / iterations) * 1000;
+    return (double) (totalTime / iterations) * -1000;
 }
 
 timeMeasurmentStructure measureTimes (unsigned int operation_iterations,
