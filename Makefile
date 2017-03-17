@@ -11,8 +11,8 @@ osm.o: osm.cpp osm.h
 libosm.a: osm.o
 	$(AR) $(ARFLAGS) $@ $^
 
-tar: Makefile README $(all_headers) $(all_cpp)
-	tar -cvf ex1.tar Makefile README $(all_headers) $(all_cpp)
+tar: Makefile README $(all_cpp)
+	tar -cvf ex1.tar Makefile README $(all_cpp)
 
 clean:
 	rm -f *.o libosm.a ex1.tar test1 *~ *core
