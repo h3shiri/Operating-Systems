@@ -151,7 +151,7 @@ timeMeasurmentStructure measureTimes (unsigned int operation_iterations,
                                       unsigned int syscall_iterations,
                                       unsigned int disk_iterations)
 {
-    timeMeasurmentStructure timeMeasures = new timeMeasurmentStructure;
+    timeMeasurmentStructure * timeMeasures = new timeMeasurmentStructure;
     int NAMEBUFF = 300;
     timeMeasures->machineName = new char[NAMEBUFF];
     gethostname(timeMeasures->machineName, sizeof(char)*NAMEBUFF);
