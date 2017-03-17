@@ -146,3 +146,32 @@ double osm_disk_time(unsigned int iterations)
     return (double) (totalTime / iterations) * 1000;
 }
 
+timeMeasurmentStructure measureTimes (unsigned int operation_iterations,
+                                      unsigned int function_iterations,
+                                      unsigned int syscall_iterations,
+                                      unsigned int disk_iterations)
+{
+    timeMeasures = new timeMeasurmentStructure;
+    int NAMEBUFF = 300;
+    timeMeasures->machineName = new char[NAMEBUFF];
+    gethostname(timeMeasures->machineName, sizeof(char)*NAMEBUFF);
+    timeMeasures->instructionTimeNanoSecond = osm_operation_time(operation_iterations);
+    timeMeasures->functionTimeNanoSecond = osm_function_time(function_iterations);
+    timeMeasures->trapTimeNanoSecond = osm_syscall_time(syscall_iterations);
+    timeMeasures->diskTimeNanoSecond = osm_disk_time(disk_iterations);
+    if (timeMeasures->instructionTimeNanoSecond != 0)
+    {
+        //Function/instruction ratio - the respective times divided.
+        timeMeasures->functionInstructionRatio = timeMeasures->functionTimeNanoSecond/timeMeasures->instructionTimeNanoSecond; 
+        //Trap/instruction ratio - the respective times divided.
+        timeMeasures->trapInstructionRatio = timeMeasures->trapTimeNanoSecond/timeMeasures->instructionTimeNanoSecond;
+        // Disk/instruction ratio - the respective times divided.
+        timeMeasures->diskInstructionRatio = timeMeasures->diskTimeNanoSecond/timeMeasures->instructionTimeNanoSecond;
+    }
+    else
+    {
+        // An error due to the instruction time being zero.
+       return -1; 
+    }
+    return *timeMeasures;
+}
