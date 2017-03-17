@@ -19,7 +19,7 @@ double osm_operation_time(unsigned int iterations)
     int j;
     timeval sT, eT, delta;
     double totalTime = 0;
-    for (auto i = 0; i < iterations; i += 5)
+    for (unsigned int i = 0; i < iterations; i += 5)
     {
         if (gettimeofday(&sT, NULL) == -1)
         {
@@ -53,7 +53,7 @@ double osm_function_time(unsigned int iterations)
     iterations += iterations % 5;
     timeval sT, eT, delta;
     double totalTime = 0;
-    for (auto i = 0; i < iterations; i += 5)
+    for (unsigned int i = 0; i < iterations; i += 5)
     {
         if (gettimeofday(&sT, NULL) == -1)
         {
@@ -84,7 +84,7 @@ double osm_syscall_time(unsigned int iterations)
     iterations += iterations % 5;
     timeval sT, eT, delta;
     double totalTime = 0;
-    for (auto i = 0; i < iterations; i += 5)
+    for (unsigned int i = 0; i < iterations; i += 5)
     {
         if (gettimeofday(&sT, NULL) == -1)
         {
@@ -122,9 +122,9 @@ double osm_disk_time(unsigned int iterations)
     double totalTime = 0;
     size_t blksize = currBlockSize();
     mode_t m = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH | S_IRWXG;
-    char *buff = aligned_alloc(blksize, sizeof(char)*blksize);
+    char *buff = (char*)aligned_alloc(blksize, sizeof(char)*blksize);
     f = open("WhatIDo", O_SYNC | O_DIRECT | O_CREAT, m);
-    for (auto i = 0; i < iterations; i += 5)
+    for (unsigned int i = 0; i < iterations; i += 5)
     {
         if (gettimeofday(&sT, NULL) == -1)
         {
