@@ -1,7 +1,0 @@
-The programme intially copies the a given file descriptor using dup(2), '2' is the old fd param. 
-The return value '3' is the new file descriptor (shortcut fd).
-From here on we use the new fd to preform various actions on the file.
-Second line, fcntl(3, F_GETFL) - first param is the fd, second param varies the operation on the in our case returning the file access mode and the file status flags except arg, in this case we got 0x8002 (O_RDWR|O_LARGEFILE) indicating 
-O_RDWR means the file is open for reading and writing. O_LARGEFILE means the file file cannot be represented in an off_t but can be potentially represented by off64_t basically used for large files.
-Third line, fstat(3, {..}) we retrive information on the file. Getting the return value as a struct with various fields of the file. For instance 'st_mode' - indicates the file mode and type, in our case it's equals to S_IFCHR | 0600, where '0600' sets user ID-bit and sets group ID-bit and S_IFCHR indicates it's character device.
-Then we have 2 consecative 'write' instructions which recive 3 params "fd", "buffer" aka our message, and "length" the number of bytes we request to write. The return value indicates the number of bytes which were written, in both cases its equal to the requested length by the programme, thus indicating successful writing.
