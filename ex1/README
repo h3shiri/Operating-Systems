@@ -1,0 +1,47 @@
+h3shiri,
+Shiri Heffetz (206098311),
+EX: 1
+
+FILES:
+osm.cpp -- contains the levent code for this exercersise.
+osm.h -- a file with the headers for osm.cpp
+
+REMARKS:
+No special remarks this time around.
+
+ANSWERS:
+
+Task1 - regarding the output of strace
+
+We ran the progamme with the "Hey" parameter, 
+we can see the first line is mkdir openinng a new directory named "Welcome" with 0775 as a parameter,
+alocating the following permissions user and group RWX, other may only RX (R - read, W - write and X -
+execute).
+Then we open another folder inside the latter folder called "To" with the same premissions spesifications.
+After that, we open a file with few flags (O_WRONLY, O_CREAT, O_TRUNC) and everyone has the same 
+premissions - read and write. 
+O_CREAT - if the file didn't existed prior to this command it shall be created.
+O_WRONLY - privding the file with access mode of read only.
+O_TRUNC - if the file exists and is a regular file and the open mode allows writing, it will be truncated 
+to length 0.
+Note that the return value fd is 3 (aka the relvant file descriptor). This is followed by
+fstat(3, {..}) we retrive information on the file, '3' here is the fd.
+Getting the return value as a struct with various fields of the file. 
+For instance 'st_mode' - indicates the file mode and type, in our case it's equals to S_IFREG indicating 
+it's a regular file with premissions 0644. 
+User has RW, group and other just R. From here we have a writing command write(3, String") the string is 
+32 spaces followed by user Id, new line a cute message and our string argument in a new line.
+Plus '3' referes to the fd we just created perviously.
+Then we close the file, followed by unlinking which in turn causes the delition of our file (due to the 
+fact no process has the file open) specified behaviour of the unlink system call.
+Finally we the 'To' folder and then we remove the 'Welcome' folder by two consecutive callls to rmdir with 
+the latter two names. 
+After this we have the exit_group command which closes akk the threads in this programme.
+
+Task2:
+Our code has built in documentation for the spesific functions.
+The main goal was to meaure various operations time for the OS.
+We measured over several iterations and avarage in order to get a decent approximation.
+Except that we attempted to write a neat code without any redundant repetitions.
+Note that certain operation are preformed several times (for the averaging the given task time), meant to 
+be taken as looping unrolling.
