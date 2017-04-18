@@ -1,5 +1,5 @@
 //
-// Created by hadasba on 3/26/17.
+// Authors H.B & S.H
 //
 
 #ifndef EX2_THREAD_H
@@ -30,11 +30,14 @@ public:
     char *  getStackAddress() ;
     void setState( int FLAG);
     int getState();
+    bool syncFlag = false;
+    bool blockedFlag = false;
+
 private:
     int id;
     char stack1[STACK_SIZE];
     int state;
-    struct timeval remaingTime;
+    int syncTo;
     int quantumQounter;
 
 };
