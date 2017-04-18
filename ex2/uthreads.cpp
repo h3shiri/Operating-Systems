@@ -7,6 +7,7 @@ using namespace std;
 #include "setjmp.h"
 #include "signal.h"
 #include <string>
+#include <iostream>
 #include <stdlib.h>
 
 
@@ -23,6 +24,9 @@ void syncThread();
 
 #define SUCCESS 0
 #define ERROR -1
+#define MIC_TO_SEC 1000000
+
+#define SYS_ERROR "system error: "
 
 /**
  * id of runnig thread
@@ -37,16 +41,22 @@ Thread currThread(0);
 /**
  * number of toal quantums untill now
  */
-int totalQuantumRunning;
-
+int totalQuantumRunning = 0;
 
 /**
  * que to the ids
  */
 std::priority_queue<int, std::vector<int>, std::greater<int> > idsQ;
 
-
+// Storing the various stacks, statically.
 sigjmp_buf env[MAX_THREAD_NUM];
+/**
+ * dealing with the timer and the vt alarm
+ */
+struct itimerval _clock;
+struct sigaction _signalSet;
+sigset_t _signalsToBlock, _savedAlarmsDuringBlock;
+
 
 #ifdef __x86_64__
 /* code for 64 bit Intel arch */
@@ -67,29 +77,29 @@ address_t translate_address(address_t addr)
     return ret;
 }
 
-#else
-/* code for 32 bit Intel arch */
-
-typedef unsigned int address_t;
-#define JB_SP 4
-#define JB_PC 5
-
-/* A translation is required when using an address of a variable.
-   Use this as a black box in your code. */
-address_t translate_address(address_t addr)
-{
-    address_t ret;
-    asm volatile("xor    %%gs:0x18,%0\n"
-            "rol    $0x9,%0\n"
-    : "=g" (ret)
-    : "0" (addr));
-    return ret;
-}
-
 #endif
 
 /**
- * A function for retriving the next viable id.
+ * block SIGVTALRM and save in _savedAlarmsDuringBlock
+ * the blocked signals
+ */
+static void block_SIGVT_alarm() {
+    sigprocmask(SIG_BLOCK, &_signalsToBlock, NULL);
+    sigemptyset(&_savedAlarmsDuringBlock);
+    //save in _savedAlarms.. the blocked signals
+    sigpending(&_savedAlarmsDuringBlock);
+}
+
+/**
+ * unblock SIGVTALRM, without ignoring the blocked signals
+ */
+static void unblock_not_ignoring_blocked_signals() {
+    sigprocmask(SIG_UNBLOCK, &_signalsToBlock, NULL);
+}
+
+
+/**
+ * A function for retriving the next vriable id.
  * @return - the relevant id.
  */
 int get_next_available_id()
@@ -103,9 +113,56 @@ int get_next_available_id()
     return -1;
 }
 
+/**
+ * The handler for timer actions
+ * @param sig - the relevant signals
+ */
+void timer_handler(int sig)
+{   
+    block_SIGVT_alarm();
+    if (sig != SIGVTALRM)
+    {
+        eMsg = "non-familiar signal";
+        errorMsg(eMsg);
+        unblock_not_ignoring_blocked_signals();
+        return; // should actually break our code.
+    }
+    // Make sure u use the appropriate one 
+    totalQuantumRunning++;
 
+    int jump_val = sigsetjmp(env[curThreadId], 1);
+    if (jump_val == 1) // longjump
+    {
+        return;
+    }
+    // standrd behaviour
+    if (currThread.getState() == RUNNING)
+    {
+        curThread.setState(READY);
+        readyThreads.push_back(currThread);
+        syncThread();
 
+    }
+    else
+    // we use this to force a manual change between threads.
+    {
+        setitimer(ITIMER_VIRTUAL, &_clock, NULL);
+    }
+    // Round Robin in action.
+    currThread = readyThreads.front();
+    readyThreads.pop_front();
+    currThreadId = currThread.get_id();
+    currThread.setState(RUNNING);
+    currThread.update_quantum_counter();
+    siglongjmp(env[currThreadId], 0);
 
+    unblock_not_ignoring_blocked_signals();
+}
+
+void errorMsg(string msg)
+{
+    cerr << SYS_ERROR << msg << endl;
+}
 
 /*
  * Description: This function initializes the thread library.
@@ -117,18 +174,34 @@ int get_next_available_id()
 */
 int uthread_init(int quantum_usecs)
 {
+    //initialize blockSignals set
+    sigemptyset(&_signalsToBlock);
+    sigaddset(&_signalsToBlock, SIGVTALRM);
+
+
+    // Install timer_handler as the signal handler for SIGVTALRM.
+    _signalSet.sa_handler = &timer_handler;
+
+    // fixing the timer
+    _clock.it_value.tv_sec = (int)(quantum_usecs/MIC_TO_SEC);
+    _clock.it_value.tv_usec = quantum_usecs % MIC_TO_SEC ;
+    _clock.it_interval.tv_sec = (int)(quantum_usecs/MIC_TO_SEC);
+    _clock.it_interval.tv_usec = quantum_usecs % MIC_TO_SEC;
+
+    // inserting all ID's for available ID's que.
     for (int i = 1; i < MAX_THREAD_NUM; ++i)
     {
         idsQ.push(i);
     }
 
-
+    // set timer to initial conditions
+    if (setitimer(ITIMER_VIRTUAL, &_clock, NULL) == ERROR)
+    {
+        string eMsg = "issue with setting our timer";
+        errorMsg(eMsg);
+    }
+    return SUCCESS;
 }
-
-
-
-
-
 
 /*
  * Description: This function creates a new thread, whose entry point is the
@@ -149,6 +222,7 @@ int uthread_spawn(void (*f)(void))
     }
     Thread newT = Thread(newId);
 
+    block_SIGVT_alarm();
     //save thread
     address_t sp, pc;
     sp = (address_t)newT.getStackAddress() + STACK_SIZE - sizeof(address_t);
@@ -158,6 +232,7 @@ int uthread_spawn(void (*f)(void))
     (env[newId]->__jmpbuf)[JB_PC] = translate_address(pc);
     sigemptyset(&env[newId]->__saved_mask);
     readyThreads.push_back(newT);
+    unblock_not_ignoring_blocked_signals();
     return newId;
 
 }
@@ -176,51 +251,78 @@ int uthread_spawn(void (*f)(void))
 */
 int uthread_terminate(int tid)
 {
-    // tODO: check condition for self termination.
-    if (tid == 0 || tid == curThreadId)
+
+    // TODO: check condition for self termination, whether we should exit the whole programme.
+    if (tid == 0)
     {
         // TODO: Release all lib data structures and memory allocated.
-        // exit(0);
+        exit(0);
+    }
+    block_SIGVT_alarm();
+    if (tid == curThreadId)
+    {
+        currThread.setState(TERMINATED);
+        idsQ.push(tid);
+        syncThread(currThread);
+        // TODO: Should actually exhaust the timer
+        unblock_not_ignoring_blocked_signals();
+        raise(SIGVTALRM);
+        schedulingDes();
+    } else
+
+    {
+        Thread targetThread = search_blocked_threads(tid);
+        if (targetThread.get_id() == ERROR)
+        {
+            targetThread = search_ready_threads(tid);
+            if (targetThread.get_id() == ERROR)
+            {
+                // Non existing thread
+                unblock_not_ignoring_blocked_signals();
+                return ERROR;
+            } else
+            {
+                readyThreads.remove(targetThread);
+            }
+        } else
+        {
+            blockedThreads.remove(targetThread);
+        }
+        targetThread.setState(TERMINATED);
+        idsQ.push(tid);
+        syncThread(targetThread);
+        unblock_not_ignoring_blocked_signals();
+        return SUCCESS;
     }
 
-    Thread targetThread = search_thread(tid);
-    if (targetThread.get_id() == -1)
-    {
-        // Non existing thread
-        return -1;
-    }
-    syncThread(targetThread);
-    idsQ.push(tid);
 }
 
 /**
  * dealing with the synced threads and moving it to front of
  * the ready que.
- * @param targetThread - that is being called and damping dependency list.
+ * @param targetThread - that is being called and damping the dependency list.
  */
 void syncThread(Thread targetThread)
 {
-
+    //TODO: check this code is protected from signal interuptions.
     Thread toSync(-1);
     list<int> synctIds = targetThread.syncThreads;
     if(synctIds.size() > 0)
     {
-        for( int id : synctIds) {
+        // TODO: check order of iteration here.
+        for( int id : synctIds) 
+        {
             toSync = search_blocked_threads(id);
-            blockedThreads.remove(toSync);
-            toSync.setState(READY);
-            readyThreads.push_front(toSync);
+            toSync.syncFlag = false;
+            if (!toSync.blockedFlag)
+            {
+                blockedThreads.remove(toSync);
+                toSync.setState(READY);
+                readyThreads.push_front(toSync);
+            }
         }
         targetThread.syncThreads.clear();
     }
-}
-
-/**
- * A function dealing
- */
-void scheduler()
-{
-
 }
 
 
@@ -235,14 +337,47 @@ void scheduler()
 */
 int uthread_block(int tid)
 {
+    block_SIGVT_alarm();
+    if (tid == 0)
+    {
+        eMsg = "attempting to lock the main thread";
+        errorMsg(errorMsg)
+        return ERROR;
+    }
+
+
     if (tid == curThreadId)
     {
         currThread.setState(BLOCKED);
-        schedulingDes();
-        return 0;
+        currThread.blockedFlag = true;
+        blockedThreads.push_back(currThread);
+        syncThread(tid);
+        // clear the previous timer
+        unblock_not_ignoring_blocked_signals();
+        raise(SIGVTALRM);
+        return SUCCESS;
     }
     Thread th = search_ready_threads(tid);
-    // if
+    if (th.get_id() == ERROR)
+    {
+        th = search_blocked_threads(tid);
+        if (th.get_id() == ERROR)
+        {
+            eMsg = "no thread with relevant ID exists";
+            errorMsg(eMsg);
+            unblock_not_ignoring_blocked_signals();
+            return ERROR;
+        }   
+    }
+    else
+    {
+        readyThreads.remove(th);
+        blockedThreads.push_back(th);
+    }
+    th.setState(BLOCKED);
+    th.blockedFlag = true;
+    unblock_not_ignoring_blocked_signals();
+    return SUCCESS;
 
 }
 
@@ -254,7 +389,34 @@ int uthread_block(int tid)
  * ID tid exists it is considered as an error.
  * Return value: On success, return 0. On failure, return -1.
 */
-int uthread_resume(int tid);
+int uthread_resume(int tid)
+{
+    block_SIGVT_alarm();
+    if ((tid == curThreadId) || (search_ready_threads(tid).get_id() >= 0))) 
+    {
+        unblock_not_ignoring_blocked_signals();
+        return SUCCESS;
+    }
+    Thread target = search_blocked_threads(tid);
+    if (target.get_id < 0)
+    {
+        eMsg = "thread does not exists"
+        errorMsg(eMsg);
+        unblock_not_ignoring_blocked_signals();
+        return ERROR;
+    }
+    target.blockedFlag = false;
+    if (!target.syncFlag)
+    {
+        target.setState(READY);
+        blockedThreads.remove(target);
+        readyThreads.push_back(target);
+        unblock_not_ignoring_blocked_signals();
+        return SUCCESS;
+    }
+    unblock_not_ignoring_blocked_signals();
+    return SUCCESS;
+}
 
 
 /*
@@ -271,19 +433,29 @@ int uthread_resume(int tid);
 */
 int uthread_sync(int tid)
 {
+    block_SIGVT_alarm();
     //TODO: check edge cases for main thread syncing.
     if (curThreadId == 0)
     {
+        eMsg = "main thread attempting to sync";
+        errorMsg(eMsg);
+        unblock_not_ignoring_blocked_signals();
         return ERROR;
     }
-    uthread_block(curThreadId);
     Thread targetThread = search_thread(tid);
     int tempId = targetThread.get_id();
     if (tempId == ERROR)
     {
+        eMsg = "thread not found issue";
+        errorMsg(eMsg);
+        unblock_not_ignoring_blocked_signals();
         return ERROR;
     }
+    currThread.syncFlag = true;
     targetThread.syncThreads.push_back(curThreadId);
+    uthread_block(curThreadId);
+    // force the timer issue.
+    unblock_not_ignoring_blocked_signals();
     return SUCCESS;
 }
 
@@ -375,7 +547,3 @@ int uthread_get_quantums(int tid)
     return targThread.get_quantum_counter();
 
 }
-
-
-
-
