@@ -1,5 +1,5 @@
 //
-// Created by hadasba on 3/26/17.
+// Authors: H.b & S.H
 //
 
 #include "Thread.h"
@@ -13,6 +13,7 @@
 Thread::Thread(int id)
 {
     set_id(id);
+    this->state = READY;
 }
 
 // getters and setters
@@ -44,6 +45,15 @@ void Thread::set_reminingTime(struct timeval *internalTime)
 void Thread::update_quantum_counter()
 {
     quantumQounter++;
+}
+
+/**
+ * return the id of the thread that current thread is sync to it
+ * @return syncTo
+ */
+int Thread::getSyncTo()
+{
+    return syncTo;
 }
 
 void Thread::setState(int FLAG)
