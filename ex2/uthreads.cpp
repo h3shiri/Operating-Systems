@@ -19,8 +19,8 @@ Thread search_ready_threads(int tid);
 Thread search_blocked_threads(int tid);
 Thread search_thread(int tid);
 void schedulingDes();
-void syncThread();
-
+void syncThread(Thread syncThread);
+void errorMsg(string eMsg);
 
 #define SUCCESS 0
 #define ERROR -1
@@ -86,6 +86,7 @@ address_t translate_address(address_t addr)
 static void block_SIGVT_alarm() {
     sigprocmask(SIG_BLOCK, &_signalsToBlock, NULL);
     sigemptyset(&_savedAlarmsDuringBlock);
+    sigaddset(&_savedAlarmsDuringBlock, SIGVTALRM);
     //save in _savedAlarms.. the blocked signals
     sigpending(&_savedAlarmsDuringBlock);
 }
@@ -122,7 +123,7 @@ void timer_handler(int sig)
     block_SIGVT_alarm();
     if (sig != SIGVTALRM)
     {
-        eMsg = "non-familiar signal";
+        string eMsg = "non-familiar signal";
         errorMsg(eMsg);
         unblock_not_ignoring_blocked_signals();
         return; // should actually break our code.
@@ -138,9 +139,9 @@ void timer_handler(int sig)
     // standrd behaviour
     if (currThread.getState() == RUNNING)
     {
-        curThread.setState(READY);
+        currThread.setState(READY);
         readyThreads.push_back(currThread);
-        syncThread();
+        syncThread(currThread);
 
     }
     else
@@ -151,12 +152,14 @@ void timer_handler(int sig)
     // Round Robin in action.
     currThread = readyThreads.front();
     readyThreads.pop_front();
-    currThreadId = currThread.get_id();
+    curThreadId = currThread.get_id();
     currThread.setState(RUNNING);
     currThread.update_quantum_counter();
-    siglongjmp(env[currThreadId], 0);
-
+    
+    // Should be the special unlock for protecting against vt_alarm.
     unblock_not_ignoring_blocked_signals();
+    siglongjmp(env[curThreadId], 0);
+
 }
 
 void errorMsg(string msg)
@@ -298,7 +301,7 @@ int uthread_terminate(int tid)
 }
 
 /**
- * dealing with the synced threads and moving it to front of
+ * dealing with the synced threads and moving it to 
  * the ready que.
  * @param targetThread - that is being called and damping the dependency list.
  */
@@ -318,7 +321,7 @@ void syncThread(Thread targetThread)
             {
                 blockedThreads.remove(toSync);
                 toSync.setState(READY);
-                readyThreads.push_front(toSync);
+                readyThreads.push_back(toSync);
             }
         }
         targetThread.syncThreads.clear();
@@ -340,8 +343,8 @@ int uthread_block(int tid)
     block_SIGVT_alarm();
     if (tid == 0)
     {
-        eMsg = "attempting to lock the main thread";
-        errorMsg(errorMsg)
+        string eMsg = "attempting to lock the main thread";
+        errorMsg(eMsg);
         return ERROR;
     }
 
@@ -363,7 +366,7 @@ int uthread_block(int tid)
         th = search_blocked_threads(tid);
         if (th.get_id() == ERROR)
         {
-            eMsg = "no thread with relevant ID exists";
+            string eMsg = "no thread with relevant ID exists";
             errorMsg(eMsg);
             unblock_not_ignoring_blocked_signals();
             return ERROR;
@@ -392,15 +395,15 @@ int uthread_block(int tid)
 int uthread_resume(int tid)
 {
     block_SIGVT_alarm();
-    if ((tid == curThreadId) || (search_ready_threads(tid).get_id() >= 0))) 
+    if ((tid == curThreadId) || (search_ready_threads(tid).get_id() >= 0)) 
     {
         unblock_not_ignoring_blocked_signals();
         return SUCCESS;
     }
     Thread target = search_blocked_threads(tid);
-    if (target.get_id < 0)
+    if (target.get_id() < 0)
     {
-        eMsg = "thread does not exists"
+        string eMsg = "thread does not exists";
         errorMsg(eMsg);
         unblock_not_ignoring_blocked_signals();
         return ERROR;
@@ -437,7 +440,7 @@ int uthread_sync(int tid)
     //TODO: check edge cases for main thread syncing.
     if (curThreadId == 0)
     {
-        eMsg = "main thread attempting to sync";
+        string eMsg = "main thread attempting to sync";
         errorMsg(eMsg);
         unblock_not_ignoring_blocked_signals();
         return ERROR;
@@ -446,7 +449,7 @@ int uthread_sync(int tid)
     int tempId = targetThread.get_id();
     if (tempId == ERROR)
     {
-        eMsg = "thread not found issue";
+        string eMsg = "thread not found issue";
         errorMsg(eMsg);
         unblock_not_ignoring_blocked_signals();
         return ERROR;
@@ -475,7 +478,7 @@ Thread search_thread(int tid)
 Thread search_ready_threads(int tid)
 {
     Thread th(-1);
-    for (th : readyThreads)
+    for (auto &th : readyThreads)
     {
         if (th.get_id() == tid)
         {
@@ -488,7 +491,7 @@ Thread search_ready_threads(int tid)
 Thread search_blocked_threads(int tid)
 {
     Thread th(-1);
-    for (th : blockedThreads)
+    for (auto &th : blockedThreads)
     {
         if (th.get_id() == tid)
         {
