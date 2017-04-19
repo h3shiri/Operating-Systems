@@ -11,7 +11,6 @@ using namespace std;
 #include <stdlib.h>
 
 list<Thread> readyThreads;
-// TODO: change to dict, or perhaps not due to order.
 list<Thread> blockedThreads;
 
 Thread search_ready_threads(int tid);
@@ -127,7 +126,9 @@ int get_next_available_id()
  * @param sig - the relevant signals
  */
 void timer_handler(int sig)
-{   
+{
+    //TODO: remove all future possible testing prints
+    cout << "Beginning computations..." << endl;   
     block_SIGVT_alarm();
     if (sig != SIGVTALRM)
     {
@@ -320,7 +321,7 @@ int uthread_terminate(int tid)
  */
 void syncThread(Thread targetThread)
 {
-    //TODO: check this code is protected from signal interuptions.
+    //IMPORTANT: check this code is protected from signal interuptions.
     Thread toSync(-1);
     list<int> synctIds = targetThread.syncThreads;
     if(synctIds.size() > 0)
