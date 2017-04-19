@@ -86,8 +86,6 @@ static void block_SIGVT_alarm() {
     sigprocmask(SIG_BLOCK, &_signalsToBlock, NULL);
     sigemptyset(&_savedAlarmsDuringBlock);
     sigaddset(&_savedAlarmsDuringBlock, SIGVTALRM);
-    //save in _savedAlarms.. the blocked signals
-    sigpending(&_savedAlarmsDuringBlock);
 }
 
 /**
@@ -97,6 +95,17 @@ static void unblock_not_ignoring_blocked_signals() {
     sigprocmask(SIG_UNBLOCK, &_signalsToBlock, NULL);
 }
 
+static void unblock_with_unloading_signals(){
+
+    //save in _savedAlarms.. the blocked signals
+    sigpending(&_savedAlarmsDuringBlock);
+    if (sigismember(&_savedAlarmsDuringBlock, SIGVTALRM))
+    {
+        int dummy_int;
+        sigwait(&_savedAlarmsDuringBlock, &dummy_int);
+    }
+    sigprocmask(SIG_UNBLOCK, &_signalsToBlock, NULL);
+}
 
 /**
  * A function for retriving the next vriable id.
@@ -155,7 +164,7 @@ void timer_handler(int sig)
     currThread.update_quantum_counter();
     
     // Should be the special unlock for protecting against vt_alarm.
-    unblock_not_ignoring_blocked_signals();
+    unblock_with_unloading_signals();
     siglongjmp(env[curThreadId], 0);
 
 }
@@ -194,6 +203,13 @@ int uthread_init(int quantum_usecs)
     {
         idsQ.push(i);
     }
+
+    Thread mainPlayer = Thread(0);
+    mainPlayer.setState(RUNNING);
+    currThread = mainPlayer;
+    curThreadId = 0;
+    currThread.update_quantum_counter();
+    totalQuantumRunning++;
 
     // set timer to initial conditions
     if (setitimer(ITIMER_VIRTUAL, &_clock, NULL) == ERROR)
@@ -265,10 +281,9 @@ int uthread_terminate(int tid)
         currThread.setState(TERMINATED);
         idsQ.push(tid);
         syncThread(currThread);
-        // TODO: Should actually exhaust the timer
-        unblock_not_ignoring_blocked_signals();
+        // Should actually exhaust the timer
+        unblock_with_unloading_signals();
         raise(SIGVTALRM);
-        schedulingDes();
     } else
 
     {
@@ -354,7 +369,7 @@ int uthread_block(int tid)
         blockedThreads.push_back(currThread);
         syncThread(tid);
         // clear the previous timer
-        unblock_not_ignoring_blocked_signals();
+        unblock_with_unloading_signals();
         raise(SIGVTALRM);
         return SUCCESS;
     }
