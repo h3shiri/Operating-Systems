@@ -18,6 +18,9 @@ void timer_handler(int sig)
   printf("Timer expired %d\n",y);
 }
 
+static void dummy_func(int j){
+	return;
+}
 
 int main(void) {
 	struct sigaction sa;
@@ -34,7 +37,7 @@ int main(void) {
 	timer.it_value.tv_usec = 0;		// first time interval, microseconds part
 
 	// configure the timer to expire every 3 sec after that.
-	timer.it_interval.tv_sec = 3;	// following time intervals, seconds part
+	timer.it_interval.tv_sec = 5;	// following time intervals, seconds part
 	timer.it_interval.tv_usec = 0;	// following time intervals, microseconds part
 
 	// Start a virtual timer. It counts down whenever this process is executing.
@@ -48,10 +51,19 @@ int main(void) {
 
     // with waiting option 
     sigemptyset(&waiting_sig_mask);
-    sigpending(&waiting_sig_mask);
-
+    // sigaddset(&waiting_sig_mask, SIGVTALRM);
+    // raise(SIGVTALRM);
+    /*
+    for (int i,j =0; i<100000000; i++){
+    	j = j * j;
+    	dummy_func(j);
+    }
+    */
+    while(!sigismember(&waiting_sig_mask, SIGVTALRM)){
+    	    sigpending(&waiting_sig_mask);
+    }
+    // raise(SIGVTALRM);
     int k ,l ,m, p;
-	raise(SIGVTALRM);
 	y = 5;
 	// USING the waiting option..
 	if (sigismember(&waiting_sig_mask, SIGVTALRM)) {
@@ -60,9 +72,8 @@ int main(void) {
         int dummy_sig_num_int_pointer;
         sigwait(&waiting_sig_mask, &dummy_sig_num_int_pointer);
     }
-    y = 9;
     sigprocmask(SIG_UNBLOCK, &sig_vt_alarm_set, NULL);
-
+    // y = 9;
 	for(;;) {
 
 		if (gotit) {

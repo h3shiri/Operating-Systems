@@ -17,7 +17,7 @@ Thread::Thread(int id)
 }
 
 // getters and setters
-int Thread::get_id()
+int Thread::get_id() const
 {
     return id;
 }
@@ -37,23 +37,9 @@ void Thread::set_id(int id)
     this->id = id;
 }
 
-void Thread::set_reminingTime(struct timeval *internalTime)
-{
-    this->remaingTime = *internalTime;
-}
-
 void Thread::update_quantum_counter()
 {
     quantumQounter++;
-}
-
-/**
- * return the id of the thread that current thread is sync to it
- * @return syncTo
- */
-int Thread::getSyncTo()
-{
-    return syncTo;
 }
 
 void Thread::setState(int FLAG)
@@ -69,3 +55,15 @@ int Thread::getState()
 {
     return state;
 }
+
+// overloading comparison op.
+bool Thread::operator==(const Thread &other)
+{
+    return (id == other.get_id());
+}
+
+/* dummy main func
+int main(){
+    return 0;
+}
+*/

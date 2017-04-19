@@ -10,7 +10,6 @@ using namespace std;
 #include <iostream>
 #include <stdlib.h>
 
-
 list<Thread> readyThreads;
 // TODO: change to dict, or perhaps not due to order.
 list<Thread> blockedThreads;
@@ -142,7 +141,6 @@ void timer_handler(int sig)
         currThread.setState(READY);
         readyThreads.push_back(currThread);
         syncThread(currThread);
-
     }
     else
     // we use this to force a manual change between threads.
