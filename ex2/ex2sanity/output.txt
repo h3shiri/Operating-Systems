@@ -1,0 +1,3 @@
+Thread:m Number:(0) 0
+Init Quantum num is: 1
+m0 Quanta:1
