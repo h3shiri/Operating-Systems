@@ -6,7 +6,7 @@ using namespace std;
 #include "Thread.h"
 #include "setjmp.h"
 #include "signal.h"
-#include <string>
+#include <string.h>
 #include <iostream>
 #include <stdlib.h>
 
@@ -102,6 +102,11 @@ static void unblock_with_unloading_signals(){
     {
         int dummy_int;
         sigwait(&_savedAlarmsDuringBlock, &dummy_int);
+        if (setitimer(ITIMER_VIRTUAL, &_clock, NULL) == ERROR)
+        {
+            string eMsg = "initiating timer issues";
+            errorMsg(eMsg);
+        }
     }
     sigprocmask(SIG_UNBLOCK, &_signalsToBlock, NULL);
 }
@@ -125,10 +130,9 @@ int get_next_available_id()
  * The handler for timer actions
  * @param sig - the relevant signals
  */
-void timer_handler(int sig)
+static void timer_handler(int sig)
 {
     //TODO: remove all future possible testing prints
-    cout << "Beginning computations..." << endl;   
     block_SIGVT_alarm();
     if (sig != SIGVTALRM)
     {
@@ -145,7 +149,7 @@ void timer_handler(int sig)
     {
         return;
     }
-    // standrd behaviour
+    // standard behaviour
     if (currThread.getState() == RUNNING)
     {
         currThread.setState(READY);
@@ -155,6 +159,7 @@ void timer_handler(int sig)
     else
     // we use this to force a manual change between threads.
     {
+        // cout << "manually changing contest" << endl;
         setitimer(ITIMER_VIRTUAL, &_clock, NULL);
     }
     // Round Robin in action.
@@ -164,8 +169,11 @@ void timer_handler(int sig)
     currThread.setState(RUNNING);
     currThread.update_quantum_counter();
     
-    // Should be the special unlock for protecting against vt_alarm.
+    // Should be the special unlock for protecting against virtual alarm.
+    // releasing new quanta for the next process
+    setitimer(ITIMER_VIRTUAL, &_clock, NULL);
     unblock_with_unloading_signals();
+    // cout << "the current thread ID:" << curThreadId << endl;
     siglongjmp(env[curThreadId], 0);
 
 }
@@ -174,6 +182,9 @@ void errorMsg(string msg)
 {
     cerr << SYS_ERROR << msg << endl;
 }
+
+/* A placeholder function for instantiating the main func*/
+static void (*f_main)(void) { };
 
 /*
  * Description: This function initializes the thread library.
@@ -190,9 +201,15 @@ int uthread_init(int quantum_usecs)
     sigaddset(&_signalsToBlock, SIGVTALRM);
 
 
+    memset(&_signalSet, 0, sizeof(_signalSet)); // clear up
+
     // Install timer_handler as the signal handler for SIGVTALRM.
     _signalSet.sa_handler = &timer_handler;
 
+    // Installing the sigaction for us.
+    if (sigaction(SIGVTALRM, &_signalSet, NULL) < 0) {
+        return -1;
+    }
     // fixing the timer
     _clock.it_value.tv_sec = (int)(quantum_usecs/MIC_TO_SEC);
     _clock.it_value.tv_usec = quantum_usecs % MIC_TO_SEC ;
@@ -211,6 +228,14 @@ int uthread_init(int quantum_usecs)
     curThreadId = 0;
     currThread.update_quantum_counter();
     totalQuantumRunning++;
+    //save thread
+    address_t sp, pc;
+    sp = (address_t)currThread.getStackAddress() + STACK_SIZE - sizeof(address_t);
+    pc = (address_t)f_main;
+    sigsetjmp(env[curThreadId], 1);
+    (env[curThreadId]->__jmpbuf)[JB_SP] = translate_address(sp);
+    (env[curThreadId]->__jmpbuf)[JB_PC] = translate_address(pc);
+    sigemptyset(&env[curThreadId]->__saved_mask);
 
     // set timer to initial conditions
     if (setitimer(ITIMER_VIRTUAL, &_clock, NULL) == ERROR)
@@ -233,14 +258,17 @@ int uthread_init(int quantum_usecs)
 */
 int uthread_spawn(void (*f)(void))
 {
+    block_SIGVT_alarm();
     int newId = get_next_available_id();
     if(newId  < 0)
     {
-        return -1;
+        string eMsg = "issue with setting our timer";
+        errorMsg(eMsg);
+        unblock_not_ignoring_blocked_signals();        
+        return ERROR;
     }
     Thread newT = Thread(newId);
 
-    block_SIGVT_alarm();
     //save thread
     address_t sp, pc;
     sp = (address_t)newT.getStackAddress() + STACK_SIZE - sizeof(address_t);
@@ -384,15 +412,23 @@ int uthread_block(int tid)
             errorMsg(eMsg);
             unblock_not_ignoring_blocked_signals();
             return ERROR;
-        }   
+        }
+        else
+        {
+            // In case we are overrating a synced thread
+            blockedThreads.remove(th);
+            th.blockedFlag = true;
+            blockedThreads.push_back(th);
+        }
     }
     else
     {
         readyThreads.remove(th);
+        th.setState(BLOCKED);
+        th.blockedFlag = true;
         blockedThreads.push_back(th);
     }
-    th.setState(BLOCKED);
-    th.blockedFlag = true;
+
     unblock_not_ignoring_blocked_signals();
     return SUCCESS;
 
@@ -541,6 +577,7 @@ int uthread_get_total_quantums()
 }
 
 
+
 /*
  * Description: This function returns the number of quantums the thread with
  * ID tid was in RUNNING state. On the first time a thread runs, the function
@@ -552,15 +589,20 @@ int uthread_get_total_quantums()
 */
 int uthread_get_quantums(int tid)
 {
+    block_SIGVT_alarm();
     if( tid == curThreadId)
     {
+        unblock_not_ignoring_blocked_signals();
         return currThread.get_quantum_counter();
     }
     Thread targThread = search_thread(tid);
     if (targThread.get_id() == ERROR)
     {
+        string eMsg = "non-existing thread";
+        errorMsg(eMsg);
         return ERROR;
     }
+    unblock_not_ignoring_blocked_signals();
     return targThread.get_quantum_counter();
 
 }
