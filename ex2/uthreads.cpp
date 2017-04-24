@@ -10,19 +10,22 @@ using namespace std;
 #include <iostream>
 #include <stdlib.h>
 
-list<Thread> readyThreads;
-list<Thread> blockedThreads;
+list<Thread *> readyThreads;
+list<Thread *> blockedThreads;
 
-Thread search_ready_threads(int tid);
-Thread search_blocked_threads(int tid);
-Thread search_thread(int tid);
+Thread * search_ready_threads(int tid);
+Thread * search_blocked_threads(int tid);
+Thread * search_thread(int tid);
 void schedulingDes();
-void syncThread(Thread syncThread);
+void syncThread(Thread * unloadingThread);
 void errorMsg(string eMsg);
 
 #define SUCCESS 0
 #define ERROR -1
 #define MIC_TO_SEC 1000000
+
+#define KCYN  "\x1B[36m"
+#define KMAG  "\x1B[35m"
 
 #define SYS_ERROR "system error: "
 
@@ -34,7 +37,7 @@ int curThreadId;
 /**
  * running thread
  */
-Thread currThread(0);
+static Thread * currThread = nullptr;
 
 /**
  * number of toal quantums untill now
@@ -150,9 +153,9 @@ static void timer_handler(int sig)
         return;
     }
     // standard behaviour
-    if (currThread.getState() == RUNNING)
+    if ((currThread->getState() == RUNNING))
     {
-        currThread.setState(READY);
+        currThread->setState(READY);
         readyThreads.push_back(currThread);
         syncThread(currThread);
     }
@@ -165,9 +168,9 @@ static void timer_handler(int sig)
     // Round Robin in action.
     currThread = readyThreads.front();
     readyThreads.pop_front();
-    curThreadId = currThread.get_id();
-    currThread.setState(RUNNING);
-    currThread.update_quantum_counter();
+    curThreadId = currThread->get_id();
+    currThread->setState(RUNNING);
+    currThread->update_quantum_counter();
     
     // Should be the special unlock for protecting against virtual alarm.
     // releasing new quanta for the next process
@@ -178,13 +181,28 @@ static void timer_handler(int sig)
 
 }
 
+/*
+ * Printing the standard errors
+ */
 void errorMsg(string msg)
 {
-    cerr << SYS_ERROR << msg << endl;
+    cerr << KCYN << SYS_ERROR << msg << endl;
 }
 
+/*
+ * Assisting testing function to flush out any runtime errors.
+ */
+//TODO: remove from final version of the code
+/*
+static void testIssues(int location)
+{
+    cout << KMAG << "Testing" << location << endl;
+    fflush(stdout);
+}
+*/
+
 /* A placeholder function for instantiating the main func*/
-static void (*f_main)(void) { };
+//static void (*f_main)(void) { };
 
 /*
  * Description: This function initializes the thread library.
@@ -222,20 +240,12 @@ int uthread_init(int quantum_usecs)
         idsQ.push(i);
     }
 
-    Thread mainPlayer = Thread(0);
-    mainPlayer.setState(RUNNING);
+    Thread * mainPlayer = new Thread(0);
+    mainPlayer->setState(RUNNING);
     currThread = mainPlayer;
     curThreadId = 0;
-    currThread.update_quantum_counter();
+    currThread->update_quantum_counter();
     totalQuantumRunning++;
-    //save thread
-    address_t sp, pc;
-    sp = (address_t)currThread.getStackAddress() + STACK_SIZE - sizeof(address_t);
-    pc = (address_t)f_main;
-    sigsetjmp(env[curThreadId], 1);
-    (env[curThreadId]->__jmpbuf)[JB_SP] = translate_address(sp);
-    (env[curThreadId]->__jmpbuf)[JB_PC] = translate_address(pc);
-    sigemptyset(&env[curThreadId]->__saved_mask);
 
     // set timer to initial conditions
     if (setitimer(ITIMER_VIRTUAL, &_clock, NULL) == ERROR)
@@ -267,11 +277,12 @@ int uthread_spawn(void (*f)(void))
         unblock_not_ignoring_blocked_signals();        
         return ERROR;
     }
-    Thread newT = Thread(newId);
+
+    Thread * newT =  new Thread(newId);
 
     //save thread
     address_t sp, pc;
-    sp = (address_t)newT.getStackAddress() + STACK_SIZE - sizeof(address_t);
+    sp = (address_t)newT->getStackAddress() + STACK_SIZE - sizeof(address_t);
     pc = (address_t)f;
     sigsetjmp(env[newId], 1);
     (env[newId]->__jmpbuf)[JB_SP] = translate_address(sp);
@@ -307,22 +318,26 @@ int uthread_terminate(int tid)
     block_SIGVT_alarm();
     if (tid == curThreadId)
     {
-        currThread.setState(TERMINATED);
+        (*currThread).setState(TERMINATED);
         idsQ.push(tid);
         syncThread(currThread);
         // Should actually exhaust the timer
         unblock_with_unloading_signals();
         raise(SIGVTALRM);
+        // The specification isn't quite clear
+        return SUCCESS;
     } else
 
     {
-        Thread targetThread = search_blocked_threads(tid);
-        if (targetThread.get_id() == ERROR)
+        Thread * targetThread = search_blocked_threads(tid);
+        if (targetThread == nullptr)
         {
             targetThread = search_ready_threads(tid);
-            if (targetThread.get_id() == ERROR)
+            if (targetThread == nullptr)
             {
                 // Non existing thread
+                string eMsg = "non existing thread";
+                errorMsg(eMsg);
                 unblock_not_ignoring_blocked_signals();
                 return ERROR;
             } else
@@ -333,7 +348,7 @@ int uthread_terminate(int tid)
         {
             blockedThreads.remove(targetThread);
         }
-        targetThread.setState(TERMINATED);
+        targetThread->setState(TERMINATED);
         idsQ.push(tid);
         syncThread(targetThread);
         unblock_not_ignoring_blocked_signals();
@@ -343,30 +358,34 @@ int uthread_terminate(int tid)
 }
 
 /**
- * dealing with the synced threads and moving it to 
+ * dealing with the synced threads and moving them to
  * the ready que.
- * @param targetThread - that is being called and damping the dependency list.
+ * @param targetThread - this thread is being called and damping its dependency list.
  */
-void syncThread(Thread targetThread)
+void syncThread(Thread * targetThread)
 {
-    //IMPORTANT: check this code is protected from signal interuptions.
-    Thread toSync(-1);
-    list<int> synctIds = targetThread.syncThreads;
-    if(synctIds.size() > 0)
+    //IMPORTANT: check this code is protected from signal interruptions.
+    Thread * toSync = nullptr;
+    list<int> syncedIds = targetThread->syncThreads;
+    if(syncedIds.size() > 0)
     {
         // TODO: check order of iteration here.
-        for( int id : synctIds) 
+        for( int id : syncedIds)
         {
             toSync = search_blocked_threads(id);
-            toSync.syncFlag = false;
-            if (!toSync.blockedFlag)
+            if(toSync == nullptr)
+            {
+                // internal issue unloading a non synced thread.
+            }
+            toSync->syncFlag = false;
+            if (!toSync->blockedFlag)
             {
                 blockedThreads.remove(toSync);
-                toSync.setState(READY);
+                toSync->setState(READY);
                 readyThreads.push_back(toSync);
             }
         }
-        targetThread.syncThreads.clear();
+        targetThread->syncThreads.clear();
     }
 }
 
@@ -393,20 +412,20 @@ int uthread_block(int tid)
 
     if (tid == curThreadId)
     {
-        currThread.setState(BLOCKED);
-        currThread.blockedFlag = true;
+        currThread->setState(BLOCKED);
+        currThread->blockedFlag = true;
         blockedThreads.push_back(currThread);
-        syncThread(tid);
+        syncThread(currThread);
         // clear the previous timer
         unblock_with_unloading_signals();
         raise(SIGVTALRM);
         return SUCCESS;
     }
-    Thread th = search_ready_threads(tid);
-    if (th.get_id() == ERROR)
+    Thread  * target = search_ready_threads(tid);
+    if (target == nullptr)
     {
-        th = search_blocked_threads(tid);
-        if (th.get_id() == ERROR)
+        target = search_blocked_threads(tid);
+        if (target->get_id() == ERROR)
         {
             string eMsg = "no thread with relevant ID exists";
             errorMsg(eMsg);
@@ -416,24 +435,21 @@ int uthread_block(int tid)
         else
         {
             // In case we are overrating a synced thread
-            blockedThreads.remove(th);
-            th.blockedFlag = true;
-            blockedThreads.push_back(th);
+            blockedThreads.remove(target);
+            target->blockedFlag = true;
+            blockedThreads.push_back(target);
         }
     }
     else
     {
-        readyThreads.remove(th);
-        th.setState(BLOCKED);
-        th.blockedFlag = true;
-        blockedThreads.push_back(th);
+        readyThreads.remove(target);
+        target->setState(BLOCKED);
+        target->blockedFlag = true;
+        blockedThreads.push_back(target);
     }
-
     unblock_not_ignoring_blocked_signals();
     return SUCCESS;
-
 }
-
 
 /*
  * Description: This function resumes a blocked thread with ID tid and moves
@@ -445,23 +461,23 @@ int uthread_block(int tid)
 int uthread_resume(int tid)
 {
     block_SIGVT_alarm();
-    if ((tid == curThreadId) || (search_ready_threads(tid).get_id() >= 0)) 
+    if ((tid == curThreadId) || (search_ready_threads(tid) != nullptr))
     {
         unblock_not_ignoring_blocked_signals();
         return SUCCESS;
     }
-    Thread target = search_blocked_threads(tid);
-    if (target.get_id() < 0)
+    Thread * target = search_blocked_threads(tid);
+    if (target == nullptr)
     {
         string eMsg = "thread does not exists";
         errorMsg(eMsg);
         unblock_not_ignoring_blocked_signals();
         return ERROR;
     }
-    target.blockedFlag = false;
-    if (!target.syncFlag)
+    target->blockedFlag = false;
+    if (!target->syncFlag)
     {
-        target.setState(READY);
+        target->setState(READY);
         blockedThreads.remove(target);
         readyThreads.push_back(target);
         unblock_not_ignoring_blocked_signals();
@@ -495,60 +511,74 @@ int uthread_sync(int tid)
         unblock_not_ignoring_blocked_signals();
         return ERROR;
     }
-    Thread targetThread = search_thread(tid);
-    int tempId = targetThread.get_id();
-    if (tempId == ERROR)
+    Thread * targetThread = search_thread(tid);
+    if (targetThread == nullptr)
     {
         string eMsg = "thread not found issue";
         errorMsg(eMsg);
         unblock_not_ignoring_blocked_signals();
         return ERROR;
     }
-    currThread.syncFlag = true;
-    targetThread.syncThreads.push_back(curThreadId);
-    uthread_block(curThreadId);
-    // force the timer issue.
-    unblock_not_ignoring_blocked_signals();
+    currThread->syncFlag = true;
+    targetThread->syncThreads.push_back(curThreadId);
+    // Manually blocking the thread.
+    currThread->setState(BLOCKED);
+    // Note we didn't turn on the block flag because sync flag is independent condition.
+    blockedThreads.push_back(currThread);
+    syncThread(currThread);
+    // forcing a context switch.
+    unblock_with_unloading_signals();
+    raise(SIGVTALRM);
     return SUCCESS;
 }
 
-Thread search_thread(int tid)
+/*
+ * Returning a pointer to the given target thread,
+ * in case of non existing thread id return nullptr.
+ */
+Thread * search_thread(int tid)
 {
-    Thread targetThread = search_ready_threads(tid);
-    int tempId = targetThread.get_id();
-    if (tempId == ERROR)
+    Thread * targetThread = search_ready_threads(tid);
+    if (targetThread == nullptr)
     {
         targetThread = search_blocked_threads(tid);
+        if (targetThread == nullptr)
+        {
+            string eMsg = "non existing thread";
+            errorMsg(eMsg);
+            return targetThread;
+        }
         return targetThread;
     }
     return  targetThread;
 }
 
 
-Thread search_ready_threads(int tid)
+Thread * search_ready_threads(int tid)
 {
-    Thread th(-1);
-    for (auto &th : readyThreads)
+    Thread * target = nullptr;
+    for (auto * target : readyThreads)
     {
-        if (th.get_id() == tid)
+        if (target->get_id() == tid)
         {
-            return th;
+            return target;
         }
     }
-    return Thread(-1);
+    // In case we didn't find we return nullptr.
+    return target;
 }
 
-Thread search_blocked_threads(int tid)
+Thread * search_blocked_threads(int tid)
 {
-    Thread th(-1);
-    for (auto &th : blockedThreads)
+    Thread * target = nullptr;
+    for (auto * target : blockedThreads)
     {
-        if (th.get_id() == tid)
+        if (target->get_id() == tid)
         {
-            return th;
+            return target;
         }
     }
-    return Thread(-1);
+    return target;
 
 }
 
@@ -590,19 +620,18 @@ int uthread_get_total_quantums()
 int uthread_get_quantums(int tid)
 {
     block_SIGVT_alarm();
-    if( tid == curThreadId)
+    if(tid == curThreadId)
     {
         unblock_not_ignoring_blocked_signals();
-        return currThread.get_quantum_counter();
+        return currThread->get_quantum_counter();
     }
-    Thread targThread = search_thread(tid);
-    if (targThread.get_id() == ERROR)
+    Thread * targThread = search_thread(tid);
+    if (targThread == nullptr)
     {
         string eMsg = "non-existing thread";
         errorMsg(eMsg);
         return ERROR;
     }
     unblock_not_ignoring_blocked_signals();
-    return targThread.get_quantum_counter();
-
+    return targThread->get_quantum_counter();
 }

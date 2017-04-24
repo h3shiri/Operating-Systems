@@ -27,7 +27,7 @@ public:
     int get_quantum_counter() ;
     void update_quantum_counter();
     char *  getStackAddress() ;
-    void setState( int FLAG);
+    void setState(int FLAG);
     int getState();
 
     //overloading possible operators.
@@ -42,8 +42,7 @@ private:
     int id;
     char stack1[STACK_SIZE];
     int state;
-    int syncTo;
-    int quantumQounter;
+    int quantumQounter = 0;
 
 };
 

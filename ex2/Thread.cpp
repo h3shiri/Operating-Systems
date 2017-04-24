@@ -4,6 +4,7 @@
 
 #include "Thread.h"
 #include <stdio.h>
+#include <iostream>
 
 /**
  * constructor
@@ -14,6 +15,7 @@ Thread::Thread(int id)
 {
     set_id(id);
     this->state = READY;
+    syncThreads.clear();
 }
 
 // getters and setters
@@ -44,9 +46,10 @@ void Thread::update_quantum_counter()
 
 void Thread::setState(int FLAG)
 {
-    if (FLAG != READY && FLAG!=RUNNING && FLAG != WAITING && FLAG!=TERMINATED)
+    if (FLAG != READY && FLAG!=RUNNING && FLAG != WAITING && FLAG!=TERMINATED && FLAG != BLOCKED)
     {
-        printf("error: %d", FLAG);
+        std::cerr << "error: %d" << FLAG << std::endl;
+
     }
     state = FLAG;
 }
