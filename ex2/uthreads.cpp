@@ -26,8 +26,10 @@ void errorMsg(string eMsg);
 
 #define KCYN  "\x1B[36m"
 #define KMAG  "\x1B[35m"
+#define KRED  "\x1B[31m"
 
 #define SYS_ERROR "system error: "
+#define LIB_ERROR "thread library error: "
 
 /**
  * id of runnig thread
@@ -135,7 +137,6 @@ int get_next_available_id()
  */
 static void timer_handler(int sig)
 {
-    //TODO: remove all future possible testing prints
     block_SIGVT_alarm();
     if (sig != SIGVTALRM)
     {
@@ -186,13 +187,33 @@ static void timer_handler(int sig)
  */
 void errorMsg(string msg)
 {
-    cerr << KCYN << SYS_ERROR << msg << endl;
+    cerr << KCYN << LIB_ERROR << msg << endl;
+}
+
+/*
+ * printing standard error msg for system issues
+ */
+void sysErrorMsg(string msg)
+{
+    cerr << KRED << SYS_ERROR << msg << endl;
+}
+
+void freeTotalMemory()
+{
+    for (auto * target : readyThreads)
+    {
+        delete target;
+    }
+    for (auto * target : blockedThreads)
+    {
+        delete target;
+    }
 }
 
 /*
  * Assisting testing function to flush out any runtime errors.
  */
-//TODO: remove from final version of the code
+//TODO: remove occorunces from final version of the code
 /*
 static void testIssues(int location)
 {
@@ -309,7 +330,6 @@ int uthread_spawn(void (*f)(void))
 int uthread_terminate(int tid)
 {
 
-    // TODO: check condition for self termination, whether we should exit the whole programme.
     if (tid == 0)
     {
         // TODO: Release all lib data structures and memory allocated.
