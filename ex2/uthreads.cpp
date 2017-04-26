@@ -19,6 +19,7 @@ Thread * search_thread(int tid);
 void schedulingDes();
 void syncThread(Thread * unloadingThread);
 void errorMsg(string eMsg);
+void sysErrorMsg(string msg);
 
 #define SUCCESS 0
 #define ERROR -1
@@ -110,7 +111,7 @@ static void unblock_with_unloading_signals(){
         if (setitimer(ITIMER_VIRTUAL, &_clock, NULL) == ERROR)
         {
             string eMsg = "initiating timer issues";
-            errorMsg(eMsg);
+            sysErrorMsg(eMsg);
         }
     }
     sigprocmask(SIG_UNBLOCK, &_signalsToBlock, NULL);
@@ -141,7 +142,7 @@ static void timer_handler(int sig)
     if (sig != SIGVTALRM)
     {
         string eMsg = "non-familiar signal";
-        errorMsg(eMsg);
+        sysErrorMsg(eMsg);
         unblock_not_ignoring_blocked_signals();
         return; // should actually break our code.
     }
@@ -175,7 +176,11 @@ static void timer_handler(int sig)
     
     // Should be the special unlock for protecting against virtual alarm.
     // releasing new quanta for the next process
-    setitimer(ITIMER_VIRTUAL, &_clock, NULL);
+    if (setitimer(ITIMER_VIRTUAL, &_clock, NULL) == ERROR)
+        {
+            string eMsg = "initiating timer issues";
+            sysErrorMsg(eMsg);
+        }
     unblock_with_unloading_signals();
     // cout << "the current thread ID:" << curThreadId << endl;
     siglongjmp(env[curThreadId], 0);
@@ -236,8 +241,16 @@ static void testIssues(int location)
 int uthread_init(int quantum_usecs)
 {
     //initialize blockSignals set
-    sigemptyset(&_signalsToBlock);
-    sigaddset(&_signalsToBlock, SIGVTALRM);
+    if (sigemptyset(&_signalsToBlock) == ERROR)
+    {
+        string eMsg = "erorr with signal setting";
+        sysErrorMsg(eMsg);
+    }
+    if (sigaddset(&_signalsToBlock, SIGVTALRM) == ERROR)
+    {
+        string eMsg = "erorr with signal setting";
+        sysErrorMsg(eMsg);
+    }
 
 
     memset(&_signalSet, 0, sizeof(_signalSet)); // clear up
@@ -246,8 +259,10 @@ int uthread_init(int quantum_usecs)
     _signalSet.sa_handler = &timer_handler;
 
     // Installing the sigaction for us.
-    if (sigaction(SIGVTALRM, &_signalSet, NULL) < 0) {
-        return -1;
+    if (sigaction(SIGVTALRM, &_signalSet, NULL) < 0) 
+    {
+        string eMsg = "erorr with binding the timer to the handler";
+        sysErrorMsg(eMsg);    
     }
     // fixing the timer
     _clock.it_value.tv_sec = (int)(quantum_usecs/MIC_TO_SEC);
@@ -272,7 +287,7 @@ int uthread_init(int quantum_usecs)
     if (setitimer(ITIMER_VIRTUAL, &_clock, NULL) == ERROR)
     {
         string eMsg = "issue with setting our timer";
-        errorMsg(eMsg);
+        sysErrorMsg(eMsg);
     }
     return SUCCESS;
 }
@@ -294,7 +309,7 @@ int uthread_spawn(void (*f)(void))
     if(newId  < 0)
     {
         string eMsg = "issue with setting our timer";
-        errorMsg(eMsg);
+        sysErrorMsg(eMsg);
         unblock_not_ignoring_blocked_signals();        
         return ERROR;
     }
@@ -332,7 +347,7 @@ int uthread_terminate(int tid)
 
     if (tid == 0)
     {
-        // TODO: Release all lib data structures and memory allocated.
+        freeTotalMemory();
         exit(0);
     }
     block_SIGVT_alarm();
@@ -389,7 +404,6 @@ void syncThread(Thread * targetThread)
     list<int> syncedIds = targetThread->syncThreads;
     if(syncedIds.size() > 0)
     {
-        // TODO: check order of iteration here.
         for( int id : syncedIds)
         {
             toSync = search_blocked_threads(id);
@@ -408,7 +422,6 @@ void syncThread(Thread * targetThread)
         targetThread->syncThreads.clear();
     }
 }
-
 
 /*
  * Description: This function blocks the thread with ID tid. The thread may
@@ -531,6 +544,14 @@ int uthread_sync(int tid)
         unblock_not_ignoring_blocked_signals();
         return ERROR;
     }
+    if (tid == curThreadId)
+    {
+        string eMsg = "thread attempting to sync to itself";
+        errorMsg(eMsg);
+        unblock_not_ignoring_blocked_signals();
+        return ERROR;
+    }
+
     Thread * targetThread = search_thread(tid);
     if (targetThread == nullptr)
     {
@@ -573,7 +594,9 @@ Thread * search_thread(int tid)
     return  targetThread;
 }
 
-
+/*
+ * A utillity function for searching the ready threads
+ */
 Thread * search_ready_threads(int tid)
 {
     Thread * target = nullptr;
@@ -588,6 +611,9 @@ Thread * search_ready_threads(int tid)
     return target;
 }
 
+/*
+ * A utillity function for searching the block threads
+ */
 Thread * search_blocked_threads(int tid)
 {
     Thread * target = nullptr;
@@ -599,9 +625,7 @@ Thread * search_blocked_threads(int tid)
         }
     }
     return target;
-
 }
-
 
 /*
  * Description: This function returns the thread ID of the calling thread.
@@ -611,7 +635,6 @@ int uthread_get_tid()
 {
     return curThreadId;
 }
-
 
 /*
  * Description: This function returns the total number of quantums that were
@@ -625,8 +648,6 @@ int uthread_get_total_quantums()
 {
     return totalQuantumRunning;
 }
-
-
 
 /*
  * Description: This function returns the number of quantums the thread with

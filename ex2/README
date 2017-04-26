@@ -1,1 +1,23 @@
-hello
+h3shiri, hadasba
+Shiri Heffetz (206098311), Hadas Baer (302306006)
+EX: 2
+
+FILES:
+uthreads.cpp -- contains the levent code for this exercersise, user level threads.
+Thread.h -- a file with the headers for Thread.cpp
+Thread.cpp -- the relevnt file implementing a single thread.
+
+
+REMARKS:
+No special remarks this time around.
+
+ANSWERS:
+
+Q1:
+
+
+Q2:
+
+
+
+Q3:
