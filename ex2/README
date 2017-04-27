@@ -20,19 +20,15 @@ ANSWERS:
 Q1) User level threads needs minimal involvement of the OS which decreases the
 overhead and have the advantage of quick switching. In addition, user level
 threads are generic and can run on any operating system. However, user level
-threads can not take the advantage of running on  separated cores of the CPU
-and if one thread needs I/O operations all the threads are being
-blocked(because the OS see only one process).  We thing that managing a
-database that contains data about users is a  good example to a situation in
-which user level threads could be useful such as: The threads have the same
-tables to take data from them. Each thread will be responsible to execute a
-type of a query. One thread will return data about users according to their
-id, the other according to their age et cetera. In this situation we can
-enable fast answering to different queries, small overhead and each thread do
-a "small" thing so it is fine that they are not running on different cores of
-the CPU. In addition, we can decide witch queries are more important and needs
-to be answered first and also use our management system on any operating
-system.
+threads can not take the advantage of running on separated cores of the CPU
+and if one thread needs I/O operations all the threads are being blocked
+(because the OS see only one process). We think that a radar system is a good
+example of such user level threads. There will be a thread to broadcast
+outputs and a thread for catching inputs. We want to enable a fast switching
+between them and also want our user to decide the time separation between
+them. Assuming he knows when there are inputs that he wants to listen to and
+when he wants to broadcast. In addition users that use different operating
+systems could use the radar.
 
 Q2) Advantages: - Protection, processes are protected one from the other and
 we do not worry about data of one website that will be use by another or about

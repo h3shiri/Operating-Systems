@@ -218,7 +218,6 @@ void freeTotalMemory()
 /*
  * Assisting testing function to flush out any runtime errors.
  */
-//TODO: remove occorunces from final version of the code
 /*
 static void testIssues(int location)
 {
@@ -537,7 +536,6 @@ int uthread_resume(int tid)
 int uthread_sync(int tid)
 {
     block_SIGVT_alarm();
-    //TODO: check edge cases for main thread syncing.
     if (curThreadId == 0)
     {
         string eMsg = "main thread attempting to sync";
