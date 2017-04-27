@@ -3,7 +3,7 @@ Shiri Heffetz (206098311), Hadas Baer (302306006)
 EX: 2
 
 FILES:
-uthreads.cpp -- contains the levent code for this exercersise, user level threads.
+uthreads.cpp -- the relevant code for this exercersise, user level threads.
 Thread.h -- a file with the headers for Thread.cpp
 Thread.cpp -- the relevnt file implementing a single thread.
 
@@ -11,13 +11,59 @@ Thread.cpp -- the relevnt file implementing a single thread.
 REMARKS:
 No special remarks this time around.
 
+
 ANSWERS:
+=========================
+  Theoretical Questions
+=========================
 
-Q1:
+Q1) User level threads needs minimal involvement of the OS which decreases the
+overhead and have the advantage of quick switching. In addition, user level
+threads are generic and can run on any operating system. However, user level
+threads can not take the advantage of running on  separated cores of the CPU
+and if one thread needs I/O operations all the threads are being
+blocked(because the OS see only one process).  We thing that managing a
+database that contains data about users is a  good example to a situation in
+which user level threads could be useful such as: The threads have the same
+tables to take data from them. Each thread will be responsible to execute a
+type of a query. One thread will return data about users according to their
+id, the other according to their age et cetera. In this situation we can
+enable fast answering to different queries, small overhead and each thread do
+a "small" thing so it is fine that they are not running on different cores of
+the CPU. In addition, we can decide witch queries are more important and needs
+to be answered first and also use our management system on any operating
+system.
 
+Q2) Advantages: - Protection, processes are protected one from the other and
+we do not worry about data of one website that will be use by another or about
+trying to access or make differences in the same data of more then one thread.
+- Each website gets its time and do not shared the whole process time with the
+other websites. - Failure in one tab has no effect on the others. - Tabs can
+be run on a different core of the CPU if needs. Disadvantages: - Opening a new
+tab or switching between tabs has a bigger overhead and as a result are
+slowly. - As a result, When many tabs are open the explorer will be more
+slowly and have  a bigger chance to be stuck - Sharing data between process is
+more expensive - Can suffer from poor OS scheduling
 
-Q2:
+Q3) When we type enter on the keyboard it sends a hardware interrupt to the
+OS. The interrupt causes to CPU to stop what it is just doing and gets the
+signal, it calls the OS that tells him to save it in and saved it in an
+appropriate external register for inputs from the keyboard. When the shell`s
+thread runs in the user mode of the OS, it sends a software interrupt - a trap
+to the OS to ask for checking the registers. The OS reads from the register
+and sends it to the shell that now have the string that the user typed before
+enter. There is a switching to user mode again. Now there is a trap and the OS
+sends SIGTERM to the process with the proccess id - pId. Noe the behavior is
+determined according to the application decision, most applications may clean
+the resources and exit.
 
-
-
-Q3:
+Q4) Real time is the regular time we have in mind when we thinks about time,
+actual time. We use real time all over our life. For example when we want to
+refresh the screen in each couple of time, without taking into account which
+process is running when, we will use a real time clock. Virtual time is the
+time that a process is running on the CPU. virtual time can be used to measure
+computational progress or define synchronization. For example, we used virtual
+timer in order to let each thread a quanta of time to run. We want the quanta
+to be the actual time that the thread runs. If the CPU will block our process
+in order to run another one, the running thread`s time counting will stop
+until the CPU returns to run our process.
