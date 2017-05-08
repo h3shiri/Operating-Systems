@@ -1,0 +1,160 @@
+#include "MapReduceFramework.h"
+#include <iostream>
+#include <algorithm>
+#include <dirent.h>
+#include <iterator>
+
+#define MULTI_THREAD_LEVEL 9
+#define FAILURE -1
+#define FOUND 1
+
+using namespace std;
+
+/**
+ * A class representing a directory name to search in.
+ */
+class k1dirName : public k1Base {
+private:
+	string _dirName;
+
+public:
+	k1dirName(string &dirName) : _dirName(dirName) { } 
+    virtual bool operator<(const k1Base &other) const 
+    {
+    	k1dirName differentDir = (const k1dirName&)(other);
+    	return _dirName < differentDir.getName(); 
+    }
+
+    string getName() 
+    {
+    	return _dirName;
+    }
+};
+
+/**
+ * A class which is nonessential due to the fact each file is never
+ * grouped with other files, in other senarios we might change it.
+ */
+class k2dummy : public k2Base {
+private:
+	int _priority = 0; // might be used for priorities.
+public:
+
+	virtual bool operator<(const k2Base &other) const
+	{
+		k2dummy differentDir = (const k2dummy&) other;
+		int res = (int)(_priority < differentDir.getClassification());
+		/* we actually return false to all of them to seperate the keys */
+		return false; 
+	}
+
+	// A getter for the priority int.
+	int getClassification(){
+		return _priority;
+	}
+	// A setter for the priority int.
+	void setClassification(int pr){
+		_priority = pr;
+	}
+};
+
+/**
+ * A class for the file's name and the relevent boolean flag.
+ * In our case this flag indicates whether the target string has been found.
+ */
+class v2fileName : public v2Base {
+private:
+	bool _relevantFlag;
+	string _fileName;
+public:
+	v2fileName(bool _relevantFlag, string _fileName) : 
+	_relevantFlag(_relevantFlag), _fileName(_fileName) {}
+
+	/* returns the relevant flag condition */
+	bool getFlag(){
+		return _relevantFlag;
+	}
+
+	/* returns the relevant name */
+	string getName(){
+		return _fileName;
+	}
+};
+
+class k3outputFile : public k3Base {
+private:
+	string _fileName;
+public:
+	k3outputFile(string fileName) : _fileName(fileName){}
+	/* sorting lexicographically */
+    virtual bool operator<(const k3Base &other) const
+    {
+    	k3outputFile differentKey = (const k3outputFile&) other;
+    	return _fileName < differentKey.getName();
+    }
+
+    string getName(){
+    	return _fileName;
+    }
+};
+
+
+void getFilesFromFolder(string targetDir, vector<string>& dirFiles)
+{
+	const char * dirCharName = targetDir.c_str();
+	DIR * dr;
+	struct dirent * env;
+	if ((dr = opendir(dirCharName)) != NULL)
+	{
+		while(env = readdir(dr))
+		{
+			dirFiles.push_back(string(env->d_name));	
+		}
+		closedir(dr);
+	}
+}
+
+class MapReduceTargetSearch : public MapReduceBase {
+private:
+	string _target;
+public:
+	MapReduceTargetSearch(string target) : _target(target) {}
+
+	/* our mapping function takes a directory and out list of target files in the second layer */
+	void Map(const k1Base *const key, const v1Base *const val) {
+		k1Base * key1 = (k1Base *) key;
+		k1dirName * dirPath = dynamic_cast<k1dirName *>(key1);
+		vector<string> filesInDir = vector<string>();
+		string dirName = dirPath->getName();
+		getFilesFromFolder(dirName, filesInDir);
+		for (auto& str : filesInDir)
+		{
+			// checking for the target substring
+			if(str.find(_target) != string::npos)
+			{
+				k2dummy * key2 = new k2dummy();
+				v2fileName * val2 = new v2fileName(FOUND, str);
+				//TODO: clarify who's responsibility is to delete these elements evetually.
+				Emit2(key2, val2);
+			}
+			//TODO: check if you would like to insert the non fitting ones as well ?
+		}
+	}
+
+	/* our reduce function actually just move stuff to be ready for output */
+	void Reduce(const k2Base *const key, const V2_VEC &vals) {
+		//in this version we actually neglect the key
+		k3outputFile * k3 = nullptr;
+		for (auto * val2 : vals)
+		{
+			v2Base * val2_not_const = (v2Base *) val2;
+			v2fileName * real_v2 = dynamic_cast<v2fileName *>(val2_not_const);
+			if (real_v2->getFlag())
+			{
+				k3 = new k3outputFile(real_v2->getName());
+				//TODO: same here who's responsibility to clean up?
+				Emit3(k3, nullptr);
+			}
+		}
+	}
+};
