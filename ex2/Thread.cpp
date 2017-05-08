@@ -1,6 +1,4 @@
-//
-// Authors: H.b & S.H
-//
+//  Authors: H.b & S.H
 
 #include "Thread.h"
 #include <stdio.h>
@@ -46,7 +44,8 @@ void Thread::update_quantum_counter()
 
 void Thread::setState(int FLAG)
 {
-    if (FLAG != READY && FLAG!=RUNNING && FLAG != WAITING && FLAG!=TERMINATED && FLAG != BLOCKED)
+    if (FLAG != READY && FLAG!=RUNNING && FLAG != WAITING 
+        && FLAG!=TERMINATED && FLAG != BLOCKED)
     {
         std::cerr << "error: %d" << FLAG << std::endl;
 

@@ -218,7 +218,6 @@ void freeTotalMemory()
 /*
  * Assisting testing function to flush out any runtime errors.
  */
-//TODO: remove occorunces from final version of the code
 /*
 static void testIssues(int location)
 {
@@ -395,7 +394,8 @@ int uthread_terminate(int tid)
 /**
  * dealing with the synced threads and moving them to
  * the ready que.
- * @param targetThread - this thread is being called and damping its dependency list.
+ * @param targetThread - this thread is being called and damping 
+ * its dependency list.
  */
 void syncThread(Thread * targetThread)
 {
@@ -536,7 +536,6 @@ int uthread_resume(int tid)
 int uthread_sync(int tid)
 {
     block_SIGVT_alarm();
-    //TODO: check edge cases for main thread syncing.
     if (curThreadId == 0)
     {
         string eMsg = "main thread attempting to sync";
@@ -564,7 +563,8 @@ int uthread_sync(int tid)
     targetThread->syncThreads.push_back(curThreadId);
     // Manually blocking the thread.
     currThread->setState(BLOCKED);
-    // Note we didn't turn on the block flag because sync flag is independent condition.
+    // Note we didn't turn on the block flag because its an 
+    // independent condition.
     blockedThreads.push_back(currThread);
     syncThread(currThread);
     // forcing a context switch.
@@ -656,7 +656,8 @@ int uthread_get_total_quantums()
  * increase this value by 1 (so if the thread with ID tid is in RUNNING state
  * when this function is called, include also the current quantum). If no
  * thread with ID tid exists it is considered as an error.
- * Return value: On success, return the number of quantums of the thread with ID tid. On failure, return -1.
+ * Return value: On success, return the number of quantums of the thread with
+ * ID tid. On failure, return -1.
 */
 int uthread_get_quantums(int tid)
 {
