@@ -6,7 +6,12 @@
 
 #define MULTI_THREAD_LEVEL 9
 #define FAILURE -1
+#define SUCCESS 0
 #define FOUND 1
+
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KBLU  "\x1B[34m"
 
 using namespace std;
 
@@ -121,7 +126,7 @@ public:
 	MapReduceTargetSearch(string target) : _target(target) {}
 
 	/* our mapping function takes a directory and out list of target files in the second layer */
-	void Map(const k1Base *const key, const v1Base *const val) {
+	void Map(const k1Base *const key, const v1Base *const val) const {
 		k1Base * key1 = (k1Base *) key;
 		k1dirName * dirPath = dynamic_cast<k1dirName *>(key1);
 		vector<string> filesInDir = vector<string>();
@@ -142,7 +147,7 @@ public:
 	}
 
 	/* our reduce function actually just move stuff to be ready for output */
-	void Reduce(const k2Base *const key, const V2_VEC &vals) {
+	void Reduce(const k2Base *const key, const V2_VEC &vals) const {
 		//in this version we actually neglect the key
 		k3outputFile * k3 = nullptr;
 		for (auto * val2 : vals)
@@ -158,3 +163,37 @@ public:
 		}
 	}
 };
+
+int main(int argc, char* argv[])
+{
+	if (argc < 2)
+	{
+		string eMsg = "too few aruments, format: <target> <dir1, dir2..>";
+		cerr << KRED << eMsg << endl;
+		exit(FAILURE);
+	}
+	IN_ITEMS_VEC setOfKeys = vector<IN_ITEM>();
+	string targetString(argv[1]);
+	MapReduceTargetSearch frameworkPlayer(targetString);
+	// updating all the keys for the framework.
+	for (int i = 2; i < argc; ++i)
+	{
+		string dirName(argv[i]);
+		k1dirName * tempDir = new k1dirName(dirName);
+		IN_ITEM itemKey = IN_ITEM((k1Base*) tempDir, nullptr);
+		setOfKeys.push_back(itemKey);
+	}
+
+	OUT_ITEMS_VEC printOutItems = 
+	RunMapReduceFramework(frameworkPlayer, setOfKeys, MULTI_THREAD_LEVEL, false);
+
+	
+	for (auto & k3v3Pair : printOutItems)
+	{
+		k3Base* basic = (k3Base*) k3v3Pair.first;
+		k3outputFile* toBeEmitted = (k3outputFile*) basic;
+		string outPutString = toBeEmitted->getName();
+		cout << KBLU << outPutString << endl;
+	}
+	return SUCCESS;
+}
