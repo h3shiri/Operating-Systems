@@ -12,7 +12,7 @@
 #define CHUNK_SIZE 10
 #define FAILURE -1
 #define KRED  "\x1B[31m"
-
+#define KMAG  "\x1B[35m"
 
 using namespace std;
 /**
@@ -36,6 +36,12 @@ pthread_mutex_t reduceIndexMutex = PTHREAD_MUTEX_INITIALIZER;
  * mutex protects retrivalIndex
  */
 pthread_mutex_t retrivalIndexMutex = PTHREAD_MUTEX_INITIALIZER;
+
+/**
+ * Protecting the int numOfMapThreadFinished.
+ */
+pthread_mutex_t numOfMapThreadsFinishedMutex = PTHREAD_MUTEX_INITIALIZER;
+int numOfMapThreadFinished = 0;
 
 /**
  * index of next <k3Base*,list<v3Base*>> to take by next execReduce thread from
@@ -63,7 +69,7 @@ MapReduceBase * mapReduceToUse = nullptr;
  * vector contain pairs of <k1Base*,v1Base*> to deal with.
  * aka our input from the user.
  */
-IN_ITEMS_VEC k1v1Vec;
+IN_ITEMS_VEC k1v1Vec = vector<IN_ITEM>();
 
 /**
  * tells if the framework is responsible to free k2v2 values
@@ -81,7 +87,7 @@ map<k2Base*, vector<v2Base*>> shuffleOutPut;
 map<pthread_t, std::list<pair<k3Base*,v3Base*>>> reduceOutput;
 
 /**
- * number of execMap threads
+ * number of userLevelThreads we defined =.
  */
 int threadsNum = 0;
 
@@ -98,6 +104,8 @@ void* execReduce(void* dummyArg);
 void initExecReduceThreads(int multiThreadLevel);
 void sortOutputAndExit(vector<OUT_ITEM> * retVal);
 bool comparator(pair<k3Base*, v3Base*> p1, pair<k3Base*, v3Base*> p2);
+void printLikeAManiac(string eMsg);
+void printSamVal();
 
 /**
  * initialize mutexes and semaphore that will be used
@@ -115,7 +123,7 @@ void mapAndShuffle(int multiThreadLevel)
 {
     //initialize threads
     lock(&k2v2MapMutex);
-    for(int i=0; i < multiThreadLevel;i++)
+    for(int i=0; i < multiThreadLevel; ++i)
     {
         pthread_t thread;
         if(pthread_create(&thread, nullptr, &execMapRutine, nullptr) != 0)
@@ -153,18 +161,17 @@ void * execMapRutine(void* dummyArg)
     int elementsNum = k1v1Vec.size();
 	int mySIndex = 0;
 	int myEIndex = 0;
-	int chunkSize;
+	int chunkSize = 0;
     while(true)
     {
         lock(&retrivalIndexMutex);
 		if(retrivalIndex != elementsNum)
 		{
-            cout << KRED << pthread_self() << endl;
 			mySIndex = retrivalIndex;
 			chunkSize = min(CHUNK_SIZE, elementsNum  - retrivalIndex);
 			retrivalIndex  = retrivalIndex + chunkSize;
 			unlock(&retrivalIndexMutex);
-			myEIndex = mySIndex + chunkSize - 1;
+			myEIndex = mySIndex + chunkSize;
 		}
 		else
 		{
@@ -177,7 +184,9 @@ void * execMapRutine(void* dummyArg)
 			mapReduceToUse->Map(k1v1.first, k1v1.second);
 		}
     }
-
+    lock(&numOfMapThreadsFinishedMutex);
+    numOfMapThreadFinished++;
+    unlock(&numOfMapThreadsFinishedMutex);
 }
 
 void initExecReduceThreads(int multiThreadLevel)
@@ -267,14 +276,14 @@ void* shuffleRutine(void* dummyArg)
 		for (std::map<pthread_t, mapThreadData>::iterator it1=k2v2Map.begin();
 			 it1 != k2v2Map.end(); ++it1)
 		{
-			sem_wait(&shuffleSem);
+//			sem_wait(&shuffleSem);
 			lock(&(*it1).second._itemsMutex);
 			vector <k2v2pair>* itemsp = &(*it1).second._k2v2items;
 			length = itemsp->size();
 			internalCount = 0;
 			for (int i = 0; i < length; i++) {
 				k2Base *k = (*itemsp).at(i).first;
-				v2Base *v = (*itemsp)[i].second;
+				v2Base *v = (*itemsp).at(i).second;
 				for (auto& it : shuffleOutPut) {
 					chosenk2p = false;
 					if (equal(*(it.first), (*k))) {
@@ -311,11 +320,18 @@ void* shuffleRutine(void* dummyArg)
 				std::cout <<"list is not empty after shuffle treat!" << endl;
 			}
 		}
-		if(treatedPairs == pairsNum)
-		{
-			break;
-		}
+        lock(&numOfMapThreadsFinishedMutex);
+        if (numOfMapThreadFinished == threadsNum)
+        {
+            break;
+        }
+        unlock(&numOfMapThreadsFinishedMutex);
+//		if(treatedPairs == pairsNum)
+//		{
+//			break;
+//		}
 	}
+    unlock(&numOfMapThreadsFinishedMutex);
 }
 
 
@@ -358,8 +374,9 @@ void unlock(pthread_mutex_t* toUnlock)
 OUT_ITEMS_VEC RunMapReduceFramework(MapReduceBase& mapReduce, IN_ITEMS_VEC& itemsVec,
                                     int multiThreadLevel, bool autoDeleteV2K2)
 {
+    threadsNum = multiThreadLevel;
     //treat case of vetorSize = 0 i.e no items to map
-	(*mapReduceToUse) = mapReduce;
+	mapReduceToUse = &mapReduce;
     k1v1Vec = itemsVec;
     k2v2memoryResponse = autoDeleteV2K2;
 	initMutexSemaphore();
@@ -375,7 +392,7 @@ void Emit2 (k2Base* k2, v2Base* v2)
 	lock(&k2v2Map.at(id)._itemsMutex);
 	k2v2Map.at(id)._k2v2items.push_back(std::make_pair(k2,v2));
 	unlock(&k2v2Map.at(id)._itemsMutex);
-	sem_post(&shuffleSem);
+//	sem_post(&shuffleSem);
 }
 
 
@@ -415,3 +432,13 @@ bool comparator(pair<k3Base*, v3Base*> p1, pair<k3Base*, v3Base*> p2)
 }
 
 //TODO: clean garbage
+
+void printLikeAManiac(string eMsg){
+    cout << KRED << eMsg << endl;
+}
+
+void printSamVal(){
+	int * val = nullptr;
+	sem_getvalue(&shuffleSem, val);
+	cout << KMAG << val << endl;
+}
