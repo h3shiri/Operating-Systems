@@ -11,6 +11,8 @@
 
 #define CHUNK_SIZE 10
 #define FAILURE -1
+#define KRED  "\x1B[31m"
+
 
 using namespace std;
 /**
@@ -76,7 +78,7 @@ map<k2Base*, vector<v2Base*>> shuffleOutPut;
 /**
  * map for the execReduceThreads
  */
-map<pthread_t, list<pair<k3Base*,v3Base*>>> reduceOutput;
+map<pthread_t, std::list<pair<k3Base*,v3Base*>>> reduceOutput;
 
 /**
  * number of execMap threads
@@ -94,22 +96,19 @@ void* shuffleRutine(void* dummyArg);
 bool equal(const k2Base& fk2, const k2Base& sk2);
 void* execReduce(void* dummyArg);
 void initExecReduceThreads(int multiThreadLevel);
-void sortOuput();
-
+void sortOutputAndExit(vector<OUT_ITEM> * retVal);
+bool comparator(pair<k3Base*, v3Base*> p1, pair<k3Base*, v3Base*> p2);
 
 /**
  * initialize mutexes and semaphore that will be used
  */
-void initMutexSemaphore(int multiThreadLevel)
+void initMutexSemaphore()
 {
-    if((sem_init(&shuffleSem, 0, 1) ||
-        sem_init(&shuffleSem, 0, multiThreadLevel) != 0 ))
+    if((sem_init(&shuffleSem, 0, 1)))
     {
         errorDetect("sem_init");
     }
 }
-
-
 
 
 void mapAndShuffle(int multiThreadLevel)
@@ -160,6 +159,7 @@ void * execMapRutine(void* dummyArg)
         lock(&retrivalIndexMutex);
 		if(retrivalIndex != elementsNum)
 		{
+            cout << KRED << pthread_self() << endl;
 			mySIndex = retrivalIndex;
 			chunkSize = min(CHUNK_SIZE, elementsNum  - retrivalIndex);
 			retrivalIndex  = retrivalIndex + chunkSize;
@@ -191,7 +191,7 @@ void initExecReduceThreads(int multiThreadLevel)
 		}
 		reduceOutput[thread] = list<OUT_ITEM>();
 	}
-	for(map<pthread_t, list<OUT_ITEM>>::iterator it = reduceOutput.begin();
+	for(map<pthread_t, std::list<OUT_ITEM>>::iterator it = reduceOutput.begin();
 	it!=reduceOutput.end();++it)
 	{
 		if (pthread_join((*it).first, NULL) != 0)
@@ -258,16 +258,16 @@ void* execReduce(void* dummyArg)
 void* shuffleRutine(void* dummyArg)
 {
 	//treat semaphore
-	int length;
+	int length = 0;
 	int treatedPairs = 0;
 	bool chosenk2p;
 	int internalCount = 0;
 	int pairsNum = k1v1Vec.size();
 	while(true) {
-		sem_wait(&shuffleSem);
 		for (std::map<pthread_t, mapThreadData>::iterator it1=k2v2Map.begin();
 			 it1 != k2v2Map.end(); ++it1)
 		{
+			sem_wait(&shuffleSem);
 			lock(&(*it1).second._itemsMutex);
 			vector <k2v2pair>* itemsp = &(*it1).second._k2v2items;
 			length = itemsp->size();
@@ -306,13 +306,9 @@ void* shuffleRutine(void* dummyArg)
 
 			}
 			unlock(&(*it1).second._itemsMutex);
-			if((itemsp->size()!=0)|| (internalCount != (length-1)))
+			if((itemsp->size()!= 0)|| (internalCount != (length)))
 			{
 				std::cout <<"list is not empty after shuffle treat!" << endl;
-			}
-			for(int i = 0; i <(internalCount -1); ++i)
-			{
-				sem_wait(&shuffleSem);
 			}
 		}
 		if(treatedPairs == pairsNum)
@@ -369,6 +365,8 @@ OUT_ITEMS_VEC RunMapReduceFramework(MapReduceBase& mapReduce, IN_ITEMS_VEC& item
 	initMutexSemaphore();
     mapAndShuffle(multiThreadLevel);
 	initExecReduceThreads(multiThreadLevel);
+	vector<OUT_ITEM> * retVal = new vector<OUT_ITEM>();
+	sortOutputAndExit(retVal);
 }
 
 void Emit2 (k2Base* k2, v2Base* v2)
@@ -378,7 +376,6 @@ void Emit2 (k2Base* k2, v2Base* v2)
 	k2v2Map.at(id)._k2v2items.push_back(std::make_pair(k2,v2));
 	unlock(&k2v2Map.at(id)._itemsMutex);
 	sem_post(&shuffleSem);
-
 }
 
 
@@ -396,34 +393,25 @@ void Emit3 (k3Base* k3, v3Base* v3)
 	reduceOutput.at(pthread_self()).push_back(make_pair(k3,v3));
 }
 
-
-void sortOuput()
+// map<pthread_t, list<pair<k3Base*,v3Base*>>> reduceOutput;
+void sortOutputAndExit(vector<OUT_ITEM> * retVal)
 {
-
+	vector<OUT_ITEM> temp = vector<OUT_ITEM>();;
+	for (map<pthread_t, std::list<pair<k3Base*,v3Base*>>>::iterator
+                 it = reduceOutput.begin(); it != reduceOutput.end(); ++it)
+	{
+		temp = { it->second.begin(), it->second.begin()};
+		retVal->insert(retVal->end(), temp.begin(), temp.end());
+	}
+	sort(retVal->begin(), retVal->end(), comparator);
 }
 
 
+bool comparator(pair<k3Base*, v3Base*> p1, pair<k3Base*, v3Base*> p2)
+{
+    k3Base * k1 = p1.first;
+    k3Base * k2 = p2.first;
+	return ((*k1) < (*k2));
+}
+
 //TODO: clean garbage
-
-
-
-// execMap stuff
-
-//		for (int i = mySIndex; i < myEIndex; i++)
-//		{
-//			//std::pair<k2Base*,std::list<k2Base*>>& k2Lv2 = shuffleOutPut.at(i);
-//			k2Base* k2 = shuffleOutPut.at(i).first;
-//			std::list<k2Base*>& lst = shuffleOutPut.at(i).second;
-//			mapReduceToUse.Reduce(k2, lst);
-//			if(k2v2memoryResponse)
-//			{
-//				delet k2;
-//				k2 = NULL;
-//				for(std::list<k2Base*>::const_iterator it = lst.begin();
-//					it != lst.end(); ++it)
-//				{
-//					delete *it;
-//				}
-//				lst.clear();
-//			}
-//		}
