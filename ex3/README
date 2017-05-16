@@ -1,0 +1,17 @@
+h3shiri, hadasba
+Shiri Heffetz (206098311), Hadas Baer (302306006)
+EX: 3
+
+FILES:
+Search.cpp -- the relevant code for our search testing the framework.
+defs1.h -- a file with the headers for our framework cotaining some custom structs.
+MapReduceFrameWork.cpp -- the entire code for our implementation of the MapReduce framework.
+
+REMARKS:
+No special remarks this time around.
+
+
+ANSWERS:
+=========================
+  Theoretical Questions
+=========================

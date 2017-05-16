@@ -4,7 +4,7 @@
 #include <dirent.h>
 #include <iterator>
 
-#define MULTI_THREAD_LEVEL 9
+#define MULTI_THREAD_LEVEL 2
 #define FAILURE -1
 #define SUCCESS 0
 #define FOUND 1
@@ -13,6 +13,7 @@
 #define KGRN  "\x1B[32m"
 #define KBLU  "\x1B[34m"
 
+//TODO: check its ok to print in blue:)
 using namespace std;
 
 /**
@@ -48,7 +49,7 @@ public:
 	virtual bool operator<(const k2Base &other) const
 	{
 		k2dummy differentDir = (const k2dummy&) other;
-		int res = (int)(_priority < differentDir.getClassification());
+		// int res = (int)(_priority < differentDir.getClassification());
 		/* we actually return false to all of them to seperate the keys */
 		return false; 
 	}
@@ -111,7 +112,7 @@ void getFilesFromFolder(string targetDir, vector<string>& dirFiles)
 	struct dirent * env;
 	if ((dr = opendir(dirCharName)) != NULL)
 	{
-		while(env = readdir(dr))
+		while((env = readdir(dr)))
 		{
 			dirFiles.push_back(string(env->d_name));	
 		}
@@ -127,6 +128,7 @@ public:
 
 	/* our mapping function takes a directory and out list of target files in the second layer */
 	void Map(const k1Base *const key, const v1Base *const val) const {
+		(void) val;
 		k1Base * key1 = (k1Base *) key;
 		k1dirName * dirPath = dynamic_cast<k1dirName *>(key1);
 		vector<string> filesInDir = vector<string>();
@@ -139,10 +141,8 @@ public:
 			{
 				k2dummy * key2 = new k2dummy();
 				v2fileName * val2 = new v2fileName(FOUND, str);
-				//TODO: clarify who's responsibility is to delete these elements evetually.
 				Emit2(key2, val2);
 			}
-			//TODO: check if you would like to insert the non fitting ones as well ?
 		}
 	}
 
@@ -150,6 +150,7 @@ public:
 	void Reduce(const k2Base *const key, const V2_VEC &vals) const {
 		//in this version we actually neglect the key
 		k3outputFile * k3 = nullptr;
+		(void) key; 
 		for (auto * val2 : vals)
 		{
 			v2Base * val2_not_const = (v2Base *) val2;
@@ -186,14 +187,20 @@ int main(int argc, char* argv[])
 
 	OUT_ITEMS_VEC printOutItems = 
 	RunMapReduceFramework(frameworkPlayer, setOfKeys, MULTI_THREAD_LEVEL, false);
-
-	
+	string delim = " ";
+	unsigned long wordsLeftToPrint = printOutItems.size();
 	for (auto & k3v3Pair : printOutItems)
 	{
+		--wordsLeftToPrint;
 		k3Base* basic = (k3Base*) k3v3Pair.first;
 		k3outputFile* toBeEmitted = (k3outputFile*) basic;
 		string outPutString = toBeEmitted->getName();
-		cout << KBLU << outPutString << endl;
+		cout << outPutString;
+		if (wordsLeftToPrint > 0)
+		{
+			cout << delim;
+		}
+
 	}
 	return SUCCESS;
 }

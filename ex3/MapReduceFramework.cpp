@@ -188,6 +188,7 @@ void mapAndShuffle(int multiThreadLevel)
  */
 void * execMapRutine(void* dummyArg)
 {
+	dummyArg = nullptr;
     //cause each thread to be blocked creation of threads and
     //filling k2v2map properly
     lock(&k2v2MapMutex);
@@ -223,6 +224,7 @@ void * execMapRutine(void* dummyArg)
     mapThreadCounter++;
     unlock(&protectMapCounter);
     sem_post(&shuffleSem);
+    return dummyArg;
 }
 
 void initExecReduceThreads(int multiThreadLevel)
@@ -252,6 +254,7 @@ void initExecReduceThreads(int multiThreadLevel)
 // TODO: solve Problematic logic causes infinite loop.
 void* execReduce(void* dummyArg)
 {
+	dummyArg = nullptr; // against warning.
     lock(&initReduceThreadsMutex);
     unlock(&initReduceThreadsMutex);
 	int elementsNum = shuffleOutPut.size();
@@ -302,6 +305,7 @@ void* execReduce(void* dummyArg)
 			++iter;
 		}
 	}
+	return dummyArg;
 }
 
 
@@ -309,6 +313,7 @@ void* execReduce(void* dummyArg)
 
 void* shuffleRutine(void* dummyArg)
 {
+	dummyArg = nullptr; // against warning.
 	//TODO: treat semaphore?
     int length = 0;
 //	int treatedPairs = 0;
@@ -366,6 +371,7 @@ void* shuffleRutine(void* dummyArg)
         unlock(&protectMapCounter);
         sem_wait(&shuffleSem);
     }
+    return dummyArg;
 //    testingShuffleOutputs();
 }
 
