@@ -8,13 +8,14 @@
 #include <fstream>
 #include <algorithm>
 #include <fcntl.h>
-
+#include <sys/time.h>
 #define CHUNK_SIZE 10
 #define FAILURE -1
 #define KRED  "\x1B[31m"
 #define KMAG  "\x1B[35m"
 #define RST  "\x1B[0m"
-
+#define SEC_TO_NANO 1000000000
+#define MICRO_TO_NANO 1000
 
 using namespace std;
 /**
@@ -27,27 +28,34 @@ sem_t shuffleSem;
  * mutex that protecs the k2v2map. keep that no thread will
  * start running before map initialization
  */
-pthread_mutex_t k2v2MapMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t k2v2MapMutex;
 
 /**
  * mutex that protects reduceIndex
  */
-pthread_mutex_t reduceIndexMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t reduceIndexMutex;
 
 /**
  * mutex protects retrivalIndex
  */
-pthread_mutex_t retrivalIndexMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t retrivalIndexMutex;
 
 /**
  * simple init for the reduce threads.
  */
-pthread_mutex_t initReduceThreadsMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t initReduceThreadsMutex;
 
 /**
  * Protecting the map threads counter
  */
-pthread_mutex_t protectMapCounter = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t protectMapCounter;
+
+
+/**
+ * log data:
+ */
+ofstream logFile;
+pthread_mutex_t logMutex;
 
 /**
  * counting the number of Map User level threads that finished.
@@ -121,10 +129,69 @@ void* execReduce(void* dummyArg);
 void initExecReduceThreads(int multiThreadLevel);
 void sortOutputAndExit(vector<OUT_ITEM> * retVal);
 bool comparator(pair<k3Base*, v3Base*> p1, pair<k3Base*, v3Base*> p2);
-
+void writeToLog(string toWrite);
 void printLikeAManiac(string eMsg);
 void testingShuffleOutputs();
+void destroyMutexSemaphore();
 
+/**
+ * get actual time - to use in log file
+ */
+string getTime() {
+	time_t now = time(0);
+	struct tm *tStruct;
+	char buf[80];
+	tStruct = localtime(&now);
+	if(!strftime(buf, sizeof(buf), "[%d.%m.%Y %X]", tStruct))
+	{
+		errorDetect("strftime");
+	}
+	return buf;
+}
+
+/**
+* Destroy mutexes and semaphore that will be used
+*/
+void destroyMutexSemaphore()
+{
+	//TODO: problematic having no credit for the shuffle.
+	if((sem_destroy(&shuffleSem)))
+	{
+		errorDetect("sem_destroy");
+	}
+	if((pthread_mutex_destroy(&protectMapCounter)) != 0)
+	{
+		errorDetect("pthread_mutex_destroy");
+	}
+	if((pthread_mutex_destroy(&initReduceThreadsMutex)) != 0)
+	{
+		errorDetect("pthread_mutex_destroy");
+	}
+	if((pthread_mutex_destroy(&retrivalIndexMutex)) != 0)
+	{
+		errorDetect("pthread_mutex_destroy");
+	}
+	if((pthread_mutex_destroy(&reduceIndexMutex)) != 0)
+	{
+		errorDetect("pthread_mutex_destroy");
+	}
+	if((pthread_mutex_destroy(&k2v2MapMutex)) != 0)
+	{
+		errorDetect("pthread_mutex_destroy");
+	}
+	if((pthread_mutex_destroy(&logMutex)) != 0)
+	{
+		errorDetect("pthread_mutex_destroy");
+	}
+    for(map<pthread_t, mapThreadData>::iterator it = k2v2Map.begin();
+        it!=k2v2Map.end(); ++it)
+    {
+        if(pthread_mutex_destroy(&((*it).second._itemsMutex)) !=0)
+        {
+            errorDetect("pthread_mutex_destroy");
+        }
+    }
+}
 /**
  * initialize mutexes and semaphore that will be used
  */
@@ -135,7 +202,32 @@ void initMutexSemaphore()
     {
         errorDetect("sem_init");
     }
-    //TODO: remove testing prints
+	if((pthread_mutex_init(&protectMapCounter ,NULL)) != 0)
+	{
+		errorDetect("pthread_mutex_init");
+	}
+	if((pthread_mutex_init(&initReduceThreadsMutex ,NULL)) != 0)
+	{
+		errorDetect("pthread_mutex_init");
+	}
+	if((pthread_mutex_init(&retrivalIndexMutex ,NULL)) != 0)
+	{
+		errorDetect("pthread_mutex_init");
+	}
+	if((pthread_mutex_init(&reduceIndexMutex ,NULL)) != 0)
+	{
+		errorDetect("pthread_mutex_init");
+	}
+	if((pthread_mutex_init(&k2v2MapMutex ,NULL)) != 0)
+	{
+		errorDetect("pthread_mutex_init");
+	}
+	if((pthread_mutex_init(&logMutex ,NULL)) != 0)
+	{
+		errorDetect("pthread_mutex_init");
+	}
+
+	//TODO: remove testing prints
 //    int val;
 //    sem_getvalue(&shuffleSem,&val);
 //    cout << "init" << val << std::endl;
@@ -180,6 +272,20 @@ void mapAndShuffle(int multiThreadLevel)
 	}
 }
 
+void writeToLog(string toWrite)
+{
+	if(pthread_mutex_lock(&logMutex) != 0)
+	{
+		errorDetect("pthread_mutex_lock");
+	}
+	logFile << toWrite << getTime().c_str() << endl;
+	if(pthread_mutex_unlock(&logMutex) != 0)
+	{
+		errorDetect("pthread_mutex_unlock");
+	}
+}
+
+
 /**
  *
  * @param dummyArg - only to use properly as start routine
@@ -188,6 +294,9 @@ void mapAndShuffle(int multiThreadLevel)
  */
 void * execMapRutine(void* dummyArg)
 {
+	//******* Log file ******
+	writeToLog("Thread ExecMap created ");
+	//***********************
 	dummyArg = nullptr;
     //cause each thread to be blocked creation of threads and
     //filling k2v2map properly
@@ -224,6 +333,9 @@ void * execMapRutine(void* dummyArg)
     mapThreadCounter++;
     unlock(&protectMapCounter);
     sem_post(&shuffleSem);
+	//---log
+	writeToLog("Thread ExecMap terminated ");
+	//-----
     return dummyArg;
 }
 
@@ -254,6 +366,9 @@ void initExecReduceThreads(int multiThreadLevel)
 // TODO: solve Problematic logic causes infinite loop.
 void* execReduce(void* dummyArg)
 {
+	//---log
+	writeToLog("Thread ExecReduce created ");
+	//----
 	dummyArg = nullptr; // against warning.
     lock(&initReduceThreadsMutex);
     unlock(&initReduceThreadsMutex);
@@ -305,6 +420,9 @@ void* execReduce(void* dummyArg)
 			++iter;
 		}
 	}
+	//---log
+	writeToLog("Thread ExecReduce terminated " );
+	//---
 	return dummyArg;
 }
 
@@ -313,6 +431,9 @@ void* execReduce(void* dummyArg)
 
 void* shuffleRutine(void* dummyArg)
 {
+	//---logFile
+	writeToLog("Thread Shuffle created ");
+	//---
 	dummyArg = nullptr; // against warning.
 	//TODO: treat semaphore?
     int length = 0;
@@ -371,7 +492,8 @@ void* shuffleRutine(void* dummyArg)
         unlock(&protectMapCounter);
         sem_wait(&shuffleSem);
     }
-    return dummyArg;
+	writeToLog("Thread Shuffle terminated ");
+	return dummyArg;
 //    testingShuffleOutputs();
 }
 
@@ -413,17 +535,56 @@ void unlock(pthread_mutex_t* toUnlock)
 OUT_ITEMS_VEC RunMapReduceFramework(MapReduceBase& mapReduce, IN_ITEMS_VEC& itemsVec,
                                     int multiThreadLevel, bool autoDeleteV2K2)
 {
+	//--- Log
+	logFile.open("./.MapReduceFramework.log", ios_base::app | ios_base::out);
+	logFile << "runMapReduceFramework started with " << multiThreadLevel << " threads" << endl;
+	//---
+	double mapShuffleDuration, reduceDuration;
+	struct timeval start;
+	struct timeval endOfMapShuffle;
+	struct timeval endOfReduce;
+
+
 	totalThreads = multiThreadLevel;
     //TODO: treat case of vetorSize = 0, i.e no items to map
 	mapReduceToUse = &mapReduce;
     k1v1Vec = itemsVec;
     k2v2memoryResponse = autoDeleteV2K2;
 	initMutexSemaphore();
+
+	if(gettimeofday(&start, NULL))
+	{
+		errorDetect("gettimeofday");
+	}
     mapAndShuffle(multiThreadLevel);
+	if(gettimeofday(&endOfMapShuffle, NULL))
+	{
+		errorDetect("gettimeofday");
+	}
+	mapShuffleDuration =(((endOfMapShuffle.tv_sec - start.tv_sec) * SEC_TO_NANO)
+                        +((endOfMapShuffle.tv_usec - start.tv_usec)
+                          * MICRO_TO_NANO));
+
 	initExecReduceThreads(multiThreadLevel);
 	vector<OUT_ITEM> * retVal = new vector<OUT_ITEM>();
 	sortOutputAndExit(retVal);
-    return *retVal;
+	if(gettimeofday(&endOfReduce, NULL))
+	{
+		errorDetect("gettimeofday");
+	}
+    reduceDuration =(((endOfReduce.tv_sec - endOfMapShuffle.tv_sec) *
+                      SEC_TO_NANO) + ((endOfReduce.tv_usec -
+                        endOfMapShuffle.tv_usec) * MICRO_TO_NANO));
+	//---Log
+	logFile << "Map and Shuffle took " << mapShuffleDuration << " ns" << endl;
+	logFile << "Reduce took " << reduceDuration << " ns" << endl;
+	logFile << "runMapReduceFramework finished" << endl;
+	logFile.close();
+	//---
+	vector<OUT_ITEM> retVec = *retVal;
+	delete retVal;
+	destroyMutexSemaphore();
+	return retVec;
 }
 
 void Emit2 (k2Base* k2, v2Base* v2)
