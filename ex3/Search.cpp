@@ -13,7 +13,6 @@
 #define KGRN  "\x1B[32m"
 #define KBLU  "\x1B[34m"
 
-//TODO: check its ok to print in blue:)
 using namespace std;
 
 /**
@@ -104,6 +103,12 @@ public:
     }
 };
 
+/* delition vector for exiting this file */
+vector<k3outputFile *> deleteK3Keys = vector<k3outputFile *>();
+vector<k1dirName *> deleteK1Keys = vector<k1dirName *>();
+vector<k2dummy *> deleteK2Keys = vector<k2dummy *>();
+vector<v2fileName *> deleteV2Keys = vector<v2fileName *>();
+
 
 void getFilesFromFolder(string targetDir, vector<string>& dirFiles)
 {
@@ -160,6 +165,7 @@ public:
 				k3 = new k3outputFile(real_v2->getName());
 				//TODO: same here who's responsibility to clean up?
 				Emit3(k3, nullptr);
+				deleteK3Keys.push_back(k3);
 			}
 		}
 	}
@@ -181,12 +187,13 @@ int main(int argc, char* argv[])
 	{
 		string dirName(argv[i]);
 		k1dirName * tempDir = new k1dirName(dirName);
+		deleteK1Keys.push_back(tempDir);
 		IN_ITEM itemKey = IN_ITEM((k1Base*) tempDir, nullptr);
 		setOfKeys.push_back(itemKey);
 	}
 
 	OUT_ITEMS_VEC printOutItems = 
-	RunMapReduceFramework(frameworkPlayer, setOfKeys, MULTI_THREAD_LEVEL, false);
+	RunMapReduceFramework(frameworkPlayer, setOfKeys, MULTI_THREAD_LEVEL, true);
 	string delim = " ";
 	unsigned long wordsLeftToPrint = printOutItems.size();
 	for (auto & k3v3Pair : printOutItems)
@@ -200,7 +207,14 @@ int main(int argc, char* argv[])
 		{
 			cout << delim;
 		}
-
+	}
+	for (auto& pt : deleteK1Keys)
+	{
+		delete pt;
+	}
+	for (auto& pt : deleteK3Keys)
+	{
+		delete pt;
 	}
 	return SUCCESS;
 }

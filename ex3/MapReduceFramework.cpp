@@ -438,7 +438,7 @@ void* shuffleRutine(void* dummyArg)
 	//TODO: treat semaphore?
     int length = 0;
 //	int treatedPairs = 0;
-	bool choosenk2p;
+	bool choosenk2p = false;
 	while(true) {
         //TODO: clean this function
         /* this is the outer layer iterator */
