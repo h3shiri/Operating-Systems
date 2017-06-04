@@ -3,15 +3,201 @@ Shiri Heffetz (206098311), Hadas Baer (302306006)
 EX: 3
 
 FILES:
+README -- this file,containing design concepts and theoretical questions. 
 Search.cpp -- the relevant code for our search testing the framework.
 defs1.h -- a file with the headers for our framework cotaining some custom structs.
 MapReduceFrameWork.cpp -- the entire code for our implementation of the MapReduce framework.
+Makefile - our Makefile implementing various commands.
 
 REMARKS:
-No special remarks this time around.
+Late submission due to special activity with the faculty.
 
+Design:
+=========================
+      Architecture 
+=========================
+
+So we implemented this framework using layer bylayer methology.
+The first layer is reserved for the keys, second Map and reduce.
+The third one for the actual output, which is then passed to the reduce function.
+We have A Map object for the Map Threads to containers that are supervised with a mutex
+each. These containers have the relevent data stored for the shuffle work that happens concurrently
+with the map threads.
+Additionally we have a semaphore that tells the shuffle thread when to start working again
+saving the overhead of busy-wait approach. The reduce threads have a similar approach with 
+each having its own container. All Of these are managed by a map from threadsIds to containers.
+We several additional mutexes to check initilization of the reads before letting thework start
+in order to avoid dangerous race conditions.
+Overall we tried to encapsulate, the responsibility of each one of the threads and minimize
+the expensive concurrency where possible.  
+
+We also took care to lock and unlock our mutexes in the same order each time. 
+To further propegate our neat and organized approach to the concurrency between the
+mappers, shuffle, reducers and the main thread.
 
 ANSWERS:
 =========================
   Theoretical Questions
 =========================
+
+
+Q1:
+We will use pthread_cond_timewait in order to:
+1. Cause the shuffle to start an iteration - i.e seeking for pais to treat
+2. Cause the shuffle to break from its loop.
+How?:
+we will have a conditional variable condV, and a mutex  -condVmutex:
+Lets say we have a function called shuffleIteration() which search for pairs of <k2,v2> to
+treat. we want this function to be called after execMap thread is finished and we shall have
+new pairs to treat. So In the function that execute the routine of execMap we will send a signal
+using the conditional variable.
+In the shuffle function we will have while true loop  - each time we start a loop we will
+lock condV mutex and call pthread_time_wait. So shuffle will be blocked until a signal will come
+or until the time in pthread_cond_timewait is over. This time will be a time the is enough to all
+execMap threads to finished and when it is over we want the shuffle to do one more iteration
+and then break and stop. We need to use timewait in order to verify that we will really break
+and does not have an infinite loop when no more signals will come and we can remain block forever
+without using timewait!
+Psaudocode:
+pthread_cond_t  cond = PTHREAD_COND_INITIALIZER;
+p_thread_nutex_t condVmutex = PTHREAD_MUTEX_INITIALIZER;
+
+void execMap()
+{
+   .......
+   ......
+   		lockMutex(&condVmutex);
+        pthread_cond_signal(&condV);
+        unlockMutex(&condVmutex);
+}
+void shuffle()
+{
+    while(true)
+    {
+         struct timespec timeAfterWaiting;
+         struct timeval now;
+         \\update the time to wait to be the time now + a couple of time that is enough to the
+         \\threads execution:
+         calculateWaitTime(&timeAfterWaiting, &now);
+         lockMutex(&conitionVariableTimedWaitingLock);
+         int retVal = pthread_cond_timedwait(&condV, &condVmutex, &timeAfterWaiting);
+         unlockMutex(&conitionVariableTimedWaitingLock);
+         if (retVal == 0) {
+              shuffleIteration();
+         }
+         else if(retVal == ETIMEDOUT){ //one more iteration and break
+        		shuffleIteration();
+        		break;
+         }
+
+    }
+    ...
+}
+
+
+Q2:
+Our goal is to maximize the throughput.
+If threads were 100% CPU-Bound (meaning that they only use the CPU and will not block by waiting
+on an event), then it is best to use the same number of threads as the number of cores - in
+our case 8 threads:
+
+But actually we expected that threads will experience some blocking due to synchronization,
+getting data over a network, I/O operations, other operations that cause the CPU to be idle
+during the turn around time of the thread task.
+fig
+In these case it is better to have more threads than the number of cores,
+since when one thread is blocked , then kernel can schedule another thread to work and be run,
+and so on. There is no exact number of threads because we need to the precentege of cpu usage
+from each thread lifecycle.
+As we learn in the tirgul, for I/O bound task:
+Blocked Time (BT) = estimated average blocked time
+Service Time (ST)= estimated average processing time for a request (without the waiting time).
+About BT/ST+1 threads will keep the processor fully utilized.
+So we need 8 * (BT/ST+1) number of threads.
+
+
+Q3:
+
+A.Utilizing multi-cores:
+1.Using Posix threads -  Motti
+2. Using many processes - Galit- If he will use kernel threads in each process the utilization
+will grow.
+3. Rumming one proccess - User level threads  - Danny, can not utilize dfferent cores
+and also using one thread and one process - Nira. does not.
+
+
+B. The ability to create a sophisticated scheduler, based on
+internal data:
+1. Posix library - Moti:
+Schedualing is done by the CPU ia clever way (hope to be:). But can not be decided by the user.
+2. UserLevelThreads - Danny: the user can plan the schedule inside process.
+3. multi-processing - Galit.
+4. Using one thread and one process - Nira:
+Only one thread -> no contex switches -> no schedualing decisions
+
+
+C.Communiaction time:
+2. Using one thread and one process - Nira:
+There is no communication between threads or processes only one...
+So communication can be thought to be the best in this case
+2.User level threads -Danny:
+The threads share the same memory and variables
+4. Posix library - Moti:
+Communication using pipe.
+5. multi-processing - Galit
+
+D. Ability to progress while a certain thread/process is blocked
+Using multi-processing - Galit, Posix library - Moti will enable progressing while a thread is
+blocked, by a non blocked process / thread.
+Using user level threads or a single thread and process will cause stop progressing.
+
+E. Overall speed:
+1. Posix library  - Moti.
+2. multi-processing - Galit :
+Utilizes multi-core but the communication is slow.
+3. User level threads -Danny:
+can not use different cores but communication is good.
+4. Using one thread and one process -Nira:
+There is no paralleling  -> slow
+
+
+Q4:
+User level Threads & Kernel level threads:father and child shared global variables, stack and heap.
+Processes: father and child do not share global variables stack or heap.
+            explanation: stack+heap: After creating a child by using fork, the father process
+                         and its child share the heap and the stack,
+                         but if one of them will try to change something, i.e to write to memory,
+                         a copy of the memory will be created
+                         so that each process will have it's own memory..
+
+                         Global variables: immediately after calling fork the global variables
+                         in both processes will have the same values , but if in one process will
+                         change a value of global variable, it will be change only in this process
+                         with no effect on the other one.
+
+Q5:
+DeadLok:
+A state in which each member of a group of actions  - or in our case - processes/threads
+is waiting for some other member to release a lock, so all of the members are stuck
+and there is no progress.
+example:
+assume two processes A and B, and each wants resource r1 and resource r2.
+Assume A receives (or already has) r1, and B receives (or already has) r2.
+Now each try to get the resource the other has, without any timeout.
+A is blocked because B holds r2, and B is blocked because A holds r1.
+Each process is blocked and thus cannot release the resource the other wants, causing a deadlock!
+
+LiveLock:
+Livelock is a special case of resource starvation.
+As with deadlock, livelocked threads are unable to make further progress.
+However, the threads are not blocked — they are simply too busy responding to each other
+to resume work.
+The states of the processes involved in the livelock constantly change with regard to one another,
+none progressing.
+
+example:
+consider two processes each waiting for a resource the other has but waiting in a non-blocking
+manner. When each discover they cannot continue they release their held resource and sleep
+for 30 seconds, then they retrieve their original resource followed by trying to the resource
+the other process held, then left, then reaquired. Since both processes are trying to cope,
+this is a livelock!
