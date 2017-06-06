@@ -126,6 +126,8 @@ int BlockStack::insertNewBloack(Block *target)
     }
 }
 
+int shuffle;
+
 /**
  * simple comparator for checking the blocks age.
  * note this leads for the oldest block to be in the front.

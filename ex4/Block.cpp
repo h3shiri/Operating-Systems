@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 /**
- * A constructor foer the block object.
+ * A constructor for the block object.
  * @param index - the index of the block in the file
  * @param name - actual unique name
  * @param BlockSize  - the actual block size
@@ -19,6 +19,25 @@ Block::Block(int index, string name, int BlockSize, int realSize)
     this->name = name;
     this->index = index;
 }
+
+/**
+ * A constructor for the block object.
+ * @param index - the index of the block in the file
+ * @param name - actual unique name
+ * @param buffer - a pointer tp an allocated memory
+ * @param realSize - real size of data inside.
+ * @return - the relevant block object.
+ */
+Block::Block(int index, string name, void* buffer, int realSize)
+{
+    this->address = buffer;
+    this->realSize = realSize;
+    this->incRef();
+    this->name = name;
+    this->index = index;
+}
+
+
 /**
  * A simple deconstructor freeing the used memory by this class.
  */
@@ -77,4 +96,9 @@ bool Block::operator==(const Block &rhs)
         res = true;
     }
     return res;
+}
+
+void * Block::getAddress()
+{
+    return address;
 }
