@@ -11,7 +11,12 @@ public:
     bool belongsToMiddle(Block * target);
     bool belongsToOld(Block * target);
 
+    int LRU_Algo();
+    int LFU_Algo();
+    int FBR_Algo();
 
+    void updateAgeStack();
+    int
 
     /**
      * Should actually take into account replacement policy
@@ -19,7 +24,7 @@ public:
      */
     int insertNewBloack(Block * target);
 
-
+    Block * readBlockFromStack(string target, int index);
 
 private:
     int algo_policy;
@@ -29,6 +34,7 @@ private:
     int indexOfNew;
     /* first index of old instance */
     int indexOfOld;
+    static vector<Block *> _utitlityAgingstack;
     static vector<Block *> _stack;
 };
 
