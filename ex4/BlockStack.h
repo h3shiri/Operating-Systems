@@ -3,6 +3,10 @@
 #define EX4_BLOCKSTACK_H
 #include "Block.h"
 #include <vector>
+#include <iostream>
+#include <fstream>
+#include <string>
+
 
 class BlockStack {
 public:
@@ -16,7 +20,10 @@ public:
     int FBR_Algo();
 
     void updateAgeStack();
-    int
+
+    vector<Block *> getUtilityAgingStack();
+    vector<Block *> getstack();
+
 
     /**
      * Should actually take into account replacement policy
@@ -25,6 +32,8 @@ public:
     int insertNewBloack(Block * target);
 
     Block * readBlockFromStack(string target, int index);
+
+    int printLogTofile(ofstream &file);
 
 private:
     int algo_policy;

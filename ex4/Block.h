@@ -1,6 +1,4 @@
-//
-// Created by h3shiri on 6/5/17.
-//
+
 
 #ifndef EX4_BLOCK_H
 #define EX4_BLOCK_H
@@ -15,11 +13,13 @@ class Block {
 public:
     Block(int index, string name, int BlockSize,int realSize);
     ~Block();
-    int getIndex();
+    int getIndex() const;
     int getRefCount();
-    string getName();
+    string getName() const;
     int getRealSize();
     void incRef();
+
+    bool operator==(const Block& rhs);
 
 private:
     void * address = nullptr;

@@ -1,6 +1,3 @@
-//
-// Created by h3shiri on 6/5/17.
-//
 
 #include "Block.h"
 #include <sys/stat.h>
@@ -18,7 +15,7 @@ Block::Block(int index, string name, int BlockSize, int realSize)
 {
     this->address = aligned_alloc(BlockSize, BlockSize);
     this->realSize = realSize;
-    this->refCount++;
+    this->incRef();
     this->name = name;
     this->index = index;
 }
@@ -33,7 +30,7 @@ Block::~Block()
  * A getter function for the relevant index.
  * @return - the index of the block inside the file.
  */
-int Block::getIndex()
+int Block::getIndex() const
 {
     return index;
 }
@@ -61,13 +58,23 @@ void Block::incRef()
  */
 int Block::getRealSize()
 {
-
+    return realSize;
 }
 /**
  * A getter func for the actual file's name.
  * @return - the relevant name.
  */
-string Block::getName()
+string Block::getName() const
 {
     return name;
+}
+
+bool Block::operator==(const Block &rhs)
+{
+    bool res = false;
+    if ((getName() == rhs.getName()) && getIndex() == rhs.getIndex())
+    {
+        res = true;
+    }
+    return res;
 }

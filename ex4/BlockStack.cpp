@@ -19,16 +19,34 @@ BlockStack::BlockStack(int totalNumOfBlocks, int policy, double f_old , double f
 }
 
 /**
+ * A getter for the internal stack object.
+ * @return the relevant aged stack.
+ */
+vector<Block *> BlockStack::getUtilityAgingStack()
+{
+    return _utitlityAgingstack;
+}
+
+/**
+ * A getter function for the stack object.
+ * @return the relevant internal stack.
+ */
+vector<Block *> BlockStack::getstack()
+{
+    return _stack;
+}
+
+/**
  * checking whether a block is in the new section.
  * @param trBlock - the target block.
  * @return true - iff the block is in the new section.
  */
-bool BlockStack::belongsToNew(Block * trBlock)
+bool BlockStack::belongsToNew(Block * target)
 {
     int i = 0;
     for(auto bl : _stack)
     {
-        if((bl->getName() == trBlock->getName()) && (i <= indexOfNew))
+        if((*bl == *target) && (i <= indexOfNew))
         {
             return true;
         }
@@ -47,7 +65,7 @@ bool BlockStack::belongsToOld(Block *target)
     int i = 0;
     for(auto * bl : _stack)
     {
-        if((bl->getName() == target->getName()) && (i >= indexOfOld))
+        if((*bl == *target) && (i >= indexOfOld))
         {
             return true;
         }
@@ -201,6 +219,51 @@ Block * BlockStack::readBlockFromStack(string target, int index)
         {
             res = bl;
         }
+    }
+    return res;
+}
+
+/**
+ * printing the relevant cache into the stream
+ * expecting an open stream with approptiate flags (extending).
+ * @param fileStream - the relevant stream
+ * @return 0 upon success and -1 in case of error.
+ */
+int BlockStack::printLogTofile(ofstream &fileStream)
+{
+    int res;
+    string delim(" ");
+    /* order is predefined in the CacheFS doc */
+    if ((algo_policy == LRU) || algo_policy == FBR)
+    {
+        for (auto bl : _stack)
+        {
+            if (bl->getRefCount() > 0)
+            {
+                string app = bl->getName() + delim + std::to_string(bl->getIndex());
+                //TODO: check possible extra break on the last line.
+                fileStream << app << std::endl;
+            }
+        }
+        res = SUCCESS;
+    }
+    else if (algo_policy == LFU)
+    {
+        updateAgeStack();
+        for (auto bl : _utitlityAgingstack)
+        {
+            if (bl->getRefCount() > 0)
+            {
+                string app = bl->getName() + delim + std::to_string(bl->getIndex());
+                //TODO: check possible extra break on the last line.
+                fileStream << app << std::endl;
+            }
+        }
+        res = SUCCESS;
+    }
+    else
+    {
+        res = ERROR;
     }
     return res;
 }
