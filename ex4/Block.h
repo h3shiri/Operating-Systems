@@ -11,8 +11,8 @@ using namespace std;
 
 class Block {
 public:
-    Block(int index, string name, int BlockSize,int realSize);
-    Block(int index, string name, void* buffer, int realSize);
+    Block(int index, string name, int BlockSize, int realSize);
+    Block(int index, string name, char* buffer, int realSize);
     ~Block();
     int getIndex() const;
     int getRefCount();
@@ -21,10 +21,12 @@ public:
     void incRef();
 
     bool operator==(const Block& rhs);
-    void * getAddress();
+    char * getAddress();
+
+
 
 private:
-    void * address = nullptr;
+    char * address = nullptr;
     string name;
     int index;
     int realSize;

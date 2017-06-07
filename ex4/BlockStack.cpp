@@ -24,7 +24,7 @@ BlockStack::BlockStack(int totalNumOfBlocks, int policy, double f_old , double f
  */
 vector<Block *> BlockStack::getUtilityAgingStack()
 {
-    return _utitlityAgingstack;
+    return _utilityAgingstack;
 }
 
 /**
@@ -96,12 +96,12 @@ int BlockStack::insertNewBloack(Block *target)
     {
         _stack.insert(_stack.begin(), target);
         numOfActiveBlock++;
+        return SUCCESS;
     }
     // In this case we shall use the external algo for updating the stack.
     else
     {
         /* pass to relevant algorithm the relevant info aka our stack Based Object */
-        BlockStack * currentStack = this;
         int result;
         if (algo_policy == LRU)
         {
@@ -146,9 +146,9 @@ bool compareAge(Block * left,  Block * right)
  */
 void BlockStack::updateAgeStack()
 {
-    _utitlityAgingstack.clear(); // doesn't erase data thankfully
-    _utitlityAgingstack.assign(_stack.begin(), _stack.end());
-    std::sort(_utitlityAgingstack.begin(), _utitlityAgingstack.end(), compareAge);
+    _utilityAgingstack.clear(); // doesn't erase data thankfully
+    _utilityAgingstack.assign(_stack.begin(), _stack.end());
+    std::sort(_utilityAgingstack.begin(), _utilityAgingstack.end(), compareAge);
 }
 
 
@@ -164,7 +164,9 @@ int BlockStack::LRU_Algo()
     {
         return ERROR;
     }
+    Block * toRemove = _stack.back();
     _stack.pop_back();
+    delete(toRemove);
     return SUCCESS;
 }
 
@@ -178,7 +180,7 @@ int BlockStack::LFU_Algo()
     int result = ERROR;
     // updating the age block.
     updateAgeStack();
-    Block * toRemove = _utitlityAgingstack.back();
+    Block * toRemove = _utilityAgingstack.back();
     /* note here we need a quality comparison. */
     int index = 0;
     for (auto bl : _stack)
@@ -201,8 +203,25 @@ int BlockStack::LFU_Algo()
  */
 int BlockStack::FBR_Algo()
 {
-    //TODO: check secondary order is actually preserved.
-    LFU_Algo();
+    //TODO: test edge case one element, no old section ..etc
+    /* Only deleting from the proper old section. */
+    // Running from the left end of old right direction and comparing.
+    Block * tempBl = _stack.at((unsigned long)indexOfOld);
+    int i = 0;
+    int finalIndex = indexOfOld;
+    for(auto it = (_stack.begin() + indexOfOld); it != _stack.end(); ++it)
+    {
+        Block * currentBlock = *it;
+        if (currentBlock->getRefCount() <= tempBl->getRefCount())
+        {
+            tempBl = currentBlock;
+            finalIndex = indexOfOld + i;
+        }
+        i++;
+    }
+    _stack.erase(_stack.begin() + finalIndex);
+    delete(tempBl);
+    return SUCCESS;
 }
 
 /**
@@ -252,7 +271,7 @@ int BlockStack::printLogTofile(ofstream &fileStream)
     else if (algo_policy == LFU)
     {
         updateAgeStack();
-        for (auto bl : _utitlityAgingstack)
+        for (auto bl : _utilityAgingstack)
         {
             if (bl->getRefCount() > 0)
             {
@@ -268,4 +287,39 @@ int BlockStack::printLogTofile(ofstream &fileStream)
         res = ERROR;
     }
     return res;
+}
+
+/**
+ * A shuffling function that re-orders the stack and updates the ref counts.
+ * if necessary.
+ * @param target - the relevant block to shuffle.
+ * @return 0 in case of success and -1 in case of error.
+ */
+int BlockStack::shuffleStack(Block * target)
+{
+    int indexOfElement = -1;
+    int i = 0;
+    Block * temp = nullptr;
+    for (auto bl : _stack)
+    {
+        if (*bl == *target)
+        {
+            temp = bl;
+            indexOfElement = i;
+            break;
+        }
+        i++;
+    }
+    // file doesn't belong to stack, or it doesn't belong to the old section.
+    if ((indexOfElement < 0) || indexOfElement > indexOfOld)
+    {
+        return ERROR;
+    }
+    _stack.erase(_stack.begin() + indexOfElement);
+    _stack.insert(_stack.begin(), temp);
+    if ((algo_policy == LFU) || (algo_policy == LRU) || ((algo_policy == FBR) && (indexOfElement > indexOfNew)))
+    {
+        temp->incRef();
+    }
+    return SUCCESS;
 }

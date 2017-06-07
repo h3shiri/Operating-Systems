@@ -33,6 +33,8 @@ public:
 
     Block * readBlockFromStack(string target, int index);
 
+    int shuffleStack(Block * target);
+
     int printLogTofile(ofstream &file);
 
 private:
@@ -43,8 +45,8 @@ private:
     int indexOfNew;
     /* first index of old instance */
     int indexOfOld;
-    static vector<Block *> _utitlityAgingstack;
-    static vector<Block *> _stack;
+    vector<Block *> _utilityAgingstack;
+    vector<Block *> _stack;
 };
 
 

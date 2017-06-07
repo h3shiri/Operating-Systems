@@ -13,7 +13,7 @@
  */
 Block::Block(int index, string name, int BlockSize, int realSize)
 {
-    this->address = aligned_alloc(BlockSize, BlockSize);
+    this->address = (char *) aligned_alloc(BlockSize, BlockSize);
     this->realSize = realSize;
     this->incRef();
     this->name = name;
@@ -28,7 +28,7 @@ Block::Block(int index, string name, int BlockSize, int realSize)
  * @param realSize - real size of data inside.
  * @return - the relevant block object.
  */
-Block::Block(int index, string name, void* buffer, int realSize)
+Block::Block(int index, string name, char* buffer, int realSize)
 {
     this->address = buffer;
     this->realSize = realSize;
@@ -43,7 +43,7 @@ Block::Block(int index, string name, void* buffer, int realSize)
  */
 Block::~Block()
 {
-    delete(this->address);
+    delete address;
 }
 /**
  * A getter function for the relevant index.
@@ -98,7 +98,7 @@ bool Block::operator==(const Block &rhs)
     return res;
 }
 
-void * Block::getAddress()
+char * Block::getAddress()
 {
     return address;
 }

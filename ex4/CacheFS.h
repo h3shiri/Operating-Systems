@@ -14,7 +14,7 @@
 enum cache_algo_t{
 	LRU,
 	LFU,
-	FBR
+	FBR 
 };
 
 /**
