@@ -62,6 +62,8 @@ int CacheFS_destroy()
         delete(bl);
     }
     delete(pointerToStack);
+    cacheHits = 0;
+    cacheMisses = 0;
     return SUCCESS;
 }
 
@@ -197,8 +199,10 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             /* complete */
         }
         int toCopy = (num == lastBlockIndex) ? sizefromLast : blockSize;
+        /* In case we found it in the cache */
         if(block)
         {
+            cacheHits++;
             if(num == firstBlockIndex)
             {
                 des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
@@ -219,8 +223,10 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             /* shuffling the stack */
             pointerToStack->shuffleStack(block);
         }
+        // fetching it from the the main memory.
         else
         {
+            cacheMisses++;
             /* number of bytes read */
             readed = 0;
             int readBytes;
