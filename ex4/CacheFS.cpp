@@ -143,9 +143,14 @@ int CacheFS_open(const char *pathname)
  */
 int CacheFS_close(int file_id)
 {
-
+    /* in case file does not exists */
+    if (idsToFullNames.count(file_id) == 0)
+    {
+        return ERROR;
+    }
     string fileFullPath = idsToFullNames[file_id];
     stringToOpenFds[fileFullPath].remove(file_id);
+    idsToFullNames.erase(file_id);
     numOfOpenFiles--;
     return SUCCESS;
 }
@@ -174,7 +179,7 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
     //offset to copy into the buffer
     int indexBuffer = 0;
     bool exitFlag = false;
-    bool exitFlag2 = false;
+    // bool exitFlag2 = false;
     map<int, string>::iterator it = idsToFullNames.find(file_id);
     if(offset < 0 || (bufToCopyInto == nullptr) || (it == idsToFullNames.end()))
     {
@@ -223,7 +228,7 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             {
                 des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
                         (offset % blockSize), toCopy);
-                totalnumberOfbytesRead += toCopy;
+                totalnumberOfbytesRead += (toCopy - (offset % blockSize));
                 indexBuffer++;
             }
             else{
