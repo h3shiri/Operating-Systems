@@ -216,7 +216,8 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             cacheHits++;
             if (block->getRealSize() < blockSize)
             {
-                toCopy = block->getRealSize();
+//                toCopy = block->getRealSize();
+//                int dynamicOffset = (int) ((num == firstBlockIndex) ? (offset % blockSize) : 0);
                 totalnumberOfbytesRead += toCopy;
                 des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
                         (offset % blockSize), toCopy);
@@ -228,7 +229,7 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             {
                 des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
                         (offset % blockSize), toCopy);
-                totalnumberOfbytesRead += (toCopy - (offset % blockSize));
+                totalnumberOfbytesRead += (toCopy - ((int) offset % blockSize));
                 indexBuffer++;
             }
             else{
@@ -292,7 +293,7 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             //fixing the offset mistake, not copying the relevant data.
             int dynamicOffset = (int) ((num == firstBlockIndex) ? (offset % blockSize) : 0);
             des = memcpy(bufToCopyInto + (indexBuffer * blockSize), (newBlock->getAddress() + dynamicOffset), toCopy);
-            totalnumberOfbytesRead += toCopy;
+            totalnumberOfbytesRead += (toCopy - dynamicOffset);
             indexBuffer++;
             if(!des)
             {
