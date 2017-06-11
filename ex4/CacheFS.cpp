@@ -39,6 +39,10 @@ static map<string, std::list<int>> stringToOpenFds;
 int CacheFS_init(int blocks_num, cache_algo_t cache_algo,
                  double f_old , double f_new  )
 {
+    if ((f_old + f_new > 1) && (cache_algo == FBR))
+    {
+        return ERROR;
+    }
     struct stat fi;
     stat("/tmp", &fi);
     blockSize = (int) fi.st_blksize;
@@ -218,18 +222,21 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
         if(block)
         {
             cacheHits++;
-            if (block->getRealSize() < blockSize)
+            int dynamicOffset = (int) ((int) (num == firstBlockIndex) ? (offset % blockSize) : 0);
+            int currentBlSize = block->getRealSize();
+            if (currentBlSize < blockSize)
             {
 //                toCopy = block->getRealSize();
 //                int dynamicOffset = (int) ((num == firstBlockIndex) ? (offset % blockSize) : 0);
+
+                toCopy = (currentBlSize < toCopy) ? currentBlSize : toCopy;
                 totalnumberOfbytesRead += toCopy;
                 des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
-                        (offset % blockSize), toCopy);
+                        (dynamicOffset % blockSize), toCopy);
                 indexBuffer++;
                 pointerToStack->shuffleStack(block);
                 break;
             }
-            int dynamicOffset = (int) ((int) (num == firstBlockIndex) ? (offset % blockSize) : 0);
             des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
                     dynamicOffset, toCopy);
             totalnumberOfbytesRead += toCopy;
