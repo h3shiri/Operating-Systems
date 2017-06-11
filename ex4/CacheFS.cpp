@@ -206,10 +206,14 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
         // Only one block
         if(lastBlockIndex == firstBlockIndex)
         {
-            sizefromLast = sizefromLast - (offset % blockSize);
+            sizefromLast -= (offset % blockSize);
             /* complete */
         }
         int toCopy = (num == lastBlockIndex) ? sizefromLast : blockSize;
+        if ((num != lastBlockIndex) && (num == firstBlockIndex))
+        {
+            toCopy -= (offset % blockSize);
+        }
         /* In case we found it in the cache */
         if(block)
         {
@@ -225,19 +229,11 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
                 pointerToStack->shuffleStack(block);
                 break;
             }
-            if(num == firstBlockIndex)
-            {
-                des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
-                        (offset % blockSize), toCopy);
-                totalnumberOfbytesRead += (toCopy - ((int) offset % blockSize));
-                indexBuffer++;
-            }
-            else{
-                des = memcpy(bufToCopyInto + (indexBuffer * blockSize),
-                             block->getAddress(), toCopy);
-                totalnumberOfbytesRead += toCopy;
-                indexBuffer++;
-            }
+            int dynamicOffset = (int) ((int) (num == firstBlockIndex) ? (offset % blockSize) : 0);
+            des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
+                    dynamicOffset, toCopy);
+            totalnumberOfbytesRead += toCopy;
+            indexBuffer++;
             if(!des)
             {
                 return ERROR;
@@ -276,24 +272,25 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
                     exitFlag = true;
                     readed +=readBytes;
                     // slashing due to offset + count being too large
-                    if (num == firstBlockIndex)
-                    {
-                        readBytes -= (int) (offset % blockSize);
-                    }
+//                    if (num == firstBlockIndex)
+//                    {
+//                        readBytes -= (int) (offset % blockSize);
+//                    }
                     break;
                 }
                 readed +=readBytes;
             }
+            int dynamicOffset = (int) ((num == firstBlockIndex) ? (offset % blockSize) : 0);
             if(exitFlag)
             {
                 toCopy = readBytes;
+                toCopy -= dynamicOffset;
             }
             Block* newBlock  = new Block(num, path, tempBuf, readBytes);
             pointerToStack->insertNewBloack(newBlock);
             //fixing the offset mistake, not copying the relevant data.
-            int dynamicOffset = (int) ((num == firstBlockIndex) ? (offset % blockSize) : 0);
             des = memcpy(bufToCopyInto + (indexBuffer * blockSize), (newBlock->getAddress() + dynamicOffset), toCopy);
-            totalnumberOfbytesRead += (toCopy - dynamicOffset);
+            totalnumberOfbytesRead += toCopy;
             indexBuffer++;
             if(!des)
             {
