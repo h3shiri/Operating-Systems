@@ -57,10 +57,10 @@ int CacheFS_destroy()
     {
         delete(bl);
     }
-    for (auto bl : pointerToStack->getUtilityAgingStack())
-    {
-        delete(bl);
-    }
+//    for (auto bl : pointerToStack->getUtilityAgingStack())
+//    {
+//        delete(bl);
+//    }
     delete(pointerToStack);
     cacheHits = 0;
     cacheMisses = 0;
