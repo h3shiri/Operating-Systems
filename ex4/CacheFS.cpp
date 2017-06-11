@@ -164,6 +164,10 @@ int CacheFS_close(int file_id)
  */
 int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
 {
+    if (count == 0)
+    {
+        return SUCCESS;
+    }
     /* by the end of the run should be equal to count unless it's an error */
     int totalnumberOfbytesRead = 0;
     char * bufToCopyInto = (char*) (buf);
