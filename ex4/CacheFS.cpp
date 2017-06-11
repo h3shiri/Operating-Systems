@@ -292,6 +292,8 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             {
                 toCopy = readBytes;
                 toCopy -= dynamicOffset;
+                int remainingBytes = (int) count - totalnumberOfbytesRead;
+                toCopy = ((remainingBytes < toCopy) ? remainingBytes : toCopy);
             }
             Block* newBlock  = new Block(num, path, tempBuf, readBytes);
             pointerToStack->insertNewBloack(newBlock);
