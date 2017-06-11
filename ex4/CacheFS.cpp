@@ -169,6 +169,8 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
     char * bufToCopyInto = (char*) (buf);
     //offset to copy into the buffer
     int indexBuffer = 0;
+    bool exitFlag = false;
+    bool exitFlag2 = false;
     map<int, string>::iterator it = idsToFullNames.find(file_id);
     if(offset < 0 || (bufToCopyInto == nullptr) || (it == idsToFullNames.end()))
     {
@@ -203,10 +205,20 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
         if(block)
         {
             cacheHits++;
+            if (block->getRealSize() < blockSize)
+            {
+                toCopy = block->getRealSize();
+                totalnumberOfbytesRead += toCopy;
+                des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
+                        (offset % blockSize), toCopy);
+                indexBuffer++;
+                pointerToStack->shuffleStack(block);
+                break;
+            }
             if(num == firstBlockIndex)
             {
                 des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
-                                                      (offset % blockSize), toCopy);
+                        (offset % blockSize), toCopy);
                 totalnumberOfbytesRead += toCopy;
                 indexBuffer++;
             }
@@ -234,6 +246,7 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             while(readed < blockSize)
             {
                 // toCopy - readed
+                /* fix this loop it might be poisonous */
                 readBytes = pread(file_id, tempBuf + readed, blockSize,
                                   (num * blockSize) + readed);
                 if(readBytes < 0)
@@ -241,7 +254,29 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
                     delete(tempBuf);
                     return ERROR;
                 }
+                //In case we read 0 bytes
+                if(readBytes == 0)
+                {
+                    delete(tempBuf);
+                    return 0;
+                }
+                // In case of reaching EOF
+                if (readBytes < blockSize)
+                {
+                    exitFlag = true;
+                    readed +=readBytes;
+                    // slashing due to offset + count being too large
+                    if (num == firstBlockIndex)
+                    {
+                        readBytes -= (int) (offset % blockSize);
+                    }
+                    break;
+                }
                 readed +=readBytes;
+            }
+            if(exitFlag)
+            {
+                toCopy = readBytes;
             }
             Block* newBlock  = new Block(num, path, tempBuf, toCopy);
             pointerToStack->insertNewBloack(newBlock);
@@ -253,6 +288,10 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             if(!des)
             {
                 return ERROR;
+            }
+            if(exitFlag)
+            {
+                break;
             }
         }
         num++;

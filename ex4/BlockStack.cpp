@@ -185,7 +185,7 @@ int BlockStack::LFU_Algo()
     int index = 0;
     for (auto bl : _stack)
     {
-        if (bl->getName() == toRemove->getName())
+        if (*bl == *toRemove)
         {
             _stack.erase(_stack.begin() + index);
             delete(bl);
