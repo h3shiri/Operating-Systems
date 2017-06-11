@@ -42,7 +42,6 @@ void sanityCheck()
     CacheFS_pread(fd, &data, 10, 5*blockSize + 4); // read from middle of block
     if (strcmp(data, " TEST TEST")) {ok = false;}
 
-    /* passed all these ones */
     eraser.open("/tmp/sanity_test_cache.txt", std::ofstream::out | std::ofstream::trunc);
     eraser.close();
 
@@ -68,7 +67,6 @@ void sanityCheck()
     if (resultsFileInput.is_open()) {
         resultsFileInput.read(statsResults, 10000);
 
-        //TODO: test why we are missing the correct misses vs hits satistics
         if (!(!strcmp(statsResults, "Hits number: 3.\nMisses number: 2.\n") || !strcmp(statsResults, "Hits number: 3\nMisses number: 2\n")))
         {
             ok = false;
@@ -672,7 +670,7 @@ void stressTest()
     int fd1 = CacheFS_open("/tmp/Several1.txt");
     int fd2 = CacheFS_open("/tmp/Several2.txt");
 
-    char data[10*blockSize] = "\0";
+    char data[10*blockSize] = {'\0'};
     for (int i = 0; i<10000; i++)
     {
         CacheFS_pread(fd1, &data, 6*blockSize, 0*blockSize); // read 6 blocks again and again

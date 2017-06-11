@@ -310,8 +310,8 @@ int BlockStack::shuffleStack(Block * target)
         }
         i++;
     }
-    // file doesn't belong to stack, or it doesn't belong to the old section.
-    if ((indexOfElement < 0) || indexOfElement > indexOfOld)
+    // file doesn't belong to stack.
+    if ((indexOfElement < 0))
     {
         return ERROR;
     }

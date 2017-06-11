@@ -179,7 +179,7 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
     string path = it->second;
 
     int firstBlockIndex = (int) floor((int)offset/blockSize);
-    int lastBlockIndex = (int) floor(((int)offset + count)/blockSize);
+    int lastBlockIndex = (int) floor(((int)offset + count - 1)/blockSize);
     /* how many bits from the last block */
     int sizefromLast = (int) ((int) offset + count - (lastBlockIndex * blockSize));
     int num = firstBlockIndex;
@@ -278,7 +278,7 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             {
                 toCopy = readBytes;
             }
-            Block* newBlock  = new Block(num, path, tempBuf, toCopy);
+            Block* newBlock  = new Block(num, path, tempBuf, readBytes);
             pointerToStack->insertNewBloack(newBlock);
             //fixing the offset mistake, not copying the relevant data.
             int dynamicOffset = (int) ((num == firstBlockIndex) ? (offset % blockSize) : 0);
