@@ -127,7 +127,8 @@ int CacheFS_open(const char *pathname)
         return ERROR;
     }
     numOfOpenFiles++;
-    char *full_path = realpath(pathname, NULL);
+    char dummy[PATH_MAX];
+    char *full_path = realpath(pathname, dummy);
     string PathId(full_path);
     string::size_type trace = PathId.find(LOCATION);
     if (trace == string::npos)
@@ -226,15 +227,13 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             int currentBlSize = block->getRealSize();
             if (currentBlSize < blockSize)
             {
-//                toCopy = block->getRealSize();
-//                int dynamicOffset = (int) ((num == firstBlockIndex) ? (offset % blockSize) : 0);
-
                 toCopy = (currentBlSize < toCopy) ? currentBlSize : toCopy;
                 des = memcpy(bufToCopyInto + totalnumberOfbytesRead, block->getAddress() +
                         dynamicOffset, toCopy);
                 totalnumberOfbytesRead += toCopy;
                 indexBuffer++;
                 pointerToStack->shuffleStack(block);
+                free(tempBuf);
                 break;
             }
             des = memcpy(bufToCopyInto + totalnumberOfbytesRead, block->getAddress() +
@@ -247,6 +246,7 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             }
             /* shuffling the stack */
             pointerToStack->shuffleStack(block);
+            free(tempBuf);
         }
         // fetching it from the the main memory.
         else
@@ -264,14 +264,14 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
                                   (num * blockSize) + readed);
                 if(readBytes < 0)
                 {
-                    delete(tempBuf);
+                    free(tempBuf);
                     return ERROR;
                 }
                 //In case we read 0 bytes
                 if(readBytes == 0)
                 {
                     cacheMisses--;
-                    delete(tempBuf);
+                    free(tempBuf);
                     return 0;
                 }
                 // In case of reaching EOF
