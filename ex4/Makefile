@@ -21,4 +21,4 @@ tar: Makefile README $(all_cpp) $(all_headers)
 	tar -cvf ex4.tar Makefile README $(all_headers) $(all_cpp)
 
 clean:
-	rm -f *.o libuthreads.a ex4.tar test1 *~ *core
+	rm -f *.o CacheFS.a ex4.tar *~ *core

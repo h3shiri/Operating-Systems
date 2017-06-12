@@ -3,20 +3,22 @@ Shiri Heffetz (206098311), Hadas Baer (302306006)
 EX: 4
 
 FILES:
-CachFS.cpp -- the relevant code for this exercersise, implementing cache various strategies.
+CachFS.cpp -- the relevant code for this project, cache various strategies.
 Blockstack.cpp -- a container for blocks helps in managing the stack.
 Blockstack.h -- the relevant header file for our containers of blocks.
-Block.cpp -- our implementaion of a simple block, basically wrappping the system blocks.
+Block.cpp -- our implementaion of a simple block, wrappping the system blocks.
 Block.h -- the relevant header file for our block.
-Makefile -- relevant Makefile supporting various commands, such as creating the library.
-README -- this file contains infromation on this project and answers to theoretical questoins.
+Makefile -- supporting various commands, such as creating the library.
+README -- infromation on this project and answers to theoretical questoins.
 
 
 REMARKS:
 No special remarks this time around.
-Except the knowledge 42 is a timeless constant.
+Except the knowledge that 42 is a timeless constant.
 
 ANSWERS:
 =========================
   Theoretical Questions
 =========================
+
+Attached in another file.

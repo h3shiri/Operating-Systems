@@ -317,7 +317,8 @@ int BlockStack::shuffleStack(Block * target)
     }
     _stack.erase(_stack.begin() + indexOfElement);
     _stack.insert(_stack.begin(), temp);
-    if ((algo_policy == LFU) || (algo_policy == LRU) || ((algo_policy == FBR) && (indexOfElement > indexOfNew)))
+    if ((algo_policy == LFU) || (algo_policy == LRU) || 
+        ((algo_policy == FBR) && (indexOfElement > indexOfNew)))
     {
         temp->incRef();
     }

@@ -30,8 +30,8 @@ static map<string, std::list<int>> stringToOpenFds;
  * Init func
  * @param blocks_num - the number of blocks in the buffer cache.
  * @param cache_algo -  the cache algorithm that will be used.
- * @param f_old - the percentage of blocks in the old partition (rounding down).
- *                  relevant in FBR algorithm only.
+ * @param f_old -the percentage of blocks in the old partition (rounding down).
+ *                relevant in FBR algorithm only.
  * @param f_new - the percentage of blocks in the new partition (rounding down)
 				   relevant in FBR algorithm only.
  * @return
@@ -116,7 +116,8 @@ int CacheFS_print_stat (const char *log_path)
  * Openning a file requires us to check whether we access a file or block from
  * the cache actually.
  * @param pathname - a relevant pathname to the file, may be relative
- * @return reltive index fd upon successfully openning a file -1 in case of an error.
+ * @return reltive index fd upon successfully openning a file 
+ * -1 in case of an error.
  */
 int CacheFS_open(const char *pathname)
 {
@@ -162,7 +163,8 @@ int CacheFS_close(int file_id)
 
 
 /**
- * This function is essential for managing retrivals from the stuck and the actual disk.
+ * This function is essential for managing retrivals from the stuck
+ * and the actual disk.
  * reading data from open file similar to POSIX.
  * @param file_id - the relevant file_id.
  * @param buf - copying the data into the buffer.
@@ -195,7 +197,8 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
     int firstBlockIndex = (int) floor((int)offset/blockSize);
     int lastBlockIndex = (int) floor(((int)offset + count - 1)/blockSize);
     /* how many bits from the last block */
-    int sizefromLast = (int) ((int) offset + count - (lastBlockIndex * blockSize));
+    int sizefromLast = (int) ((int) offset + count - 
+        (lastBlockIndex * blockSize));
     int num = firstBlockIndex;
     int readed = 0;
     void * des;
@@ -223,21 +226,22 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
         if(block)
         {
             cacheHits++;
-            int dynamicOffset = (int) ((int) (num == firstBlockIndex) ? (offset % blockSize) : 0);
+            int dynamicOffset = (int) ((int) (num == firstBlockIndex)
+             ? (offset % blockSize) : 0);
             int currentBlSize = block->getRealSize();
             if (currentBlSize < blockSize)
             {
                 toCopy = (currentBlSize < toCopy) ? currentBlSize : toCopy;
-                des = memcpy(bufToCopyInto + totalnumberOfbytesRead, block->getAddress() +
-                        dynamicOffset, toCopy);
+                des = memcpy(bufToCopyInto + totalnumberOfbytesRead, 
+                    block->getAddress() + dynamicOffset, toCopy);
                 totalnumberOfbytesRead += toCopy;
                 indexBuffer++;
                 pointerToStack->shuffleStack(block);
                 free(tempBuf);
                 break;
             }
-            des = memcpy(bufToCopyInto + totalnumberOfbytesRead, block->getAddress() +
-                    dynamicOffset, toCopy);
+            des = memcpy(bufToCopyInto + totalnumberOfbytesRead, 
+                block->getAddress() + dynamicOffset, toCopy);
             totalnumberOfbytesRead += toCopy;
             indexBuffer++;
             if(!des)
@@ -283,7 +287,8 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
                 }
                 readed +=readBytes;
             }
-            int dynamicOffset = (int) ((num == firstBlockIndex) ? (offset % blockSize) : 0);
+            int dynamicOffset = (int) ((num == firstBlockIndex)
+                 ? (offset % blockSize) : 0);
             if(exitFlag)
             {
                 toCopy = readBytes;
@@ -294,7 +299,8 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             Block* newBlock  = new Block(num, path, tempBuf, readBytes);
             pointerToStack->insertNewBloack(newBlock);
             //fixing the offset mistake, not copying the relevant data.
-            des = memcpy(bufToCopyInto + totalnumberOfbytesRead, (newBlock->getAddress() + dynamicOffset), toCopy);
+            des = memcpy(bufToCopyInto + totalnumberOfbytesRead, 
+                (newBlock->getAddress() + dynamicOffset), toCopy);
             totalnumberOfbytesRead += toCopy;
             indexBuffer++;
             if(!des)
