@@ -43,7 +43,7 @@ Block::Block(int index, string name, char* buffer, int realSize)
  */
 Block::~Block()
 {
-    delete address;
+    free(address);
 }
 /**
  * A getter function for the relevant index.
