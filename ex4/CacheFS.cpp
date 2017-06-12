@@ -107,8 +107,8 @@ int CacheFS_print_stat (const char *log_path)
         return ERROR;
     }
     //TODO: check '.' dots and endl in case of last line
-    ofs << "Hits number: "<< to_string(cacheHits) << "." << endl;
-    ofs << "Misses number: "<< to_string(cacheMisses) << "." << endl;
+    ofs << "Hits number: "<< to_string(cacheHits) << endl;
+    ofs << "Misses number: "<< to_string(cacheMisses) << endl;
     return SUCCESS;
 }
 
@@ -230,14 +230,14 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
 //                int dynamicOffset = (int) ((num == firstBlockIndex) ? (offset % blockSize) : 0);
 
                 toCopy = (currentBlSize < toCopy) ? currentBlSize : toCopy;
+                des = memcpy(bufToCopyInto + totalnumberOfbytesRead, block->getAddress() +
+                        dynamicOffset, toCopy);
                 totalnumberOfbytesRead += toCopy;
-                des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
-                        (dynamicOffset % blockSize), toCopy);
                 indexBuffer++;
                 pointerToStack->shuffleStack(block);
                 break;
             }
-            des = memcpy(bufToCopyInto + (indexBuffer * blockSize), block->getAddress() +
+            des = memcpy(bufToCopyInto + totalnumberOfbytesRead, block->getAddress() +
                     dynamicOffset, toCopy);
             totalnumberOfbytesRead += toCopy;
             indexBuffer++;
@@ -270,6 +270,7 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
                 //In case we read 0 bytes
                 if(readBytes == 0)
                 {
+                    cacheMisses--;
                     delete(tempBuf);
                     return 0;
                 }
@@ -278,11 +279,6 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
                 {
                     exitFlag = true;
                     readed +=readBytes;
-                    // slashing due to offset + count being too large
-//                    if (num == firstBlockIndex)
-//                    {
-//                        readBytes -= (int) (offset % blockSize);
-//                    }
                     break;
                 }
                 readed +=readBytes;
@@ -298,7 +294,7 @@ int CacheFS_pread(int file_id, void *buf, size_t count, off_t offset)
             Block* newBlock  = new Block(num, path, tempBuf, readBytes);
             pointerToStack->insertNewBloack(newBlock);
             //fixing the offset mistake, not copying the relevant data.
-            des = memcpy(bufToCopyInto + (indexBuffer * blockSize), (newBlock->getAddress() + dynamicOffset), toCopy);
+            des = memcpy(bufToCopyInto + totalnumberOfbytesRead, (newBlock->getAddress() + dynamicOffset), toCopy);
             totalnumberOfbytesRead += toCopy;
             indexBuffer++;
             if(!des)
