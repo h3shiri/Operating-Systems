@@ -15,6 +15,23 @@ README -- infromation on this project and answers to theoretical questoins.
 REMARKS:
 No special remarks this time around.
 Except the knowledge that 42 is a timeless constant.
+Feel free to provide us with lukewarm feedback and exotic jokes.
+
+Design:
+=========================
+      Architecture 
+=========================
+
+In our architecture we provided supreme modularity by breaking up the 
+cache to the crucial components. The block is the basic uint emulating 
+the OS block but containing additional features for our code. On top of that,
+we alligned the memory allocations to simulae a real cache an reduce 
+the overhead. The next layer is the block stack object which implements our 
+stack of blocks with support to the various replacement algorithms.
+The cache library is the final layer that provides the user with basic support 
+for cache operations. Our code is extensive and provides support for edge cases 
+and is proof from memory leakages. 
+In addition, we have to maps in order to manage the open files properly.
 
 ANSWERS:
 =========================

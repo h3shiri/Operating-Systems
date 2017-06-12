@@ -18,7 +18,7 @@ CacheFS.a: CacheFS.o BlockStack.o Block.o
 	$(AR) rcs $@ $^
 
 tar: Makefile README $(all_cpp) $(all_headers) 
-	tar -cvf ex4.tar Makefile README $(all_headers) $(all_cpp)
+	tar -cvf ex4.tar Makefile README Answers.pdf $(all_headers) $(all_cpp)
 
 clean:
-	rm -f *.o CacheFS.a ex4.tar *~ *core
+	rm -f *.o CacheFS.a ex4.tar *~ *core 
