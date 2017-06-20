@@ -9,7 +9,7 @@ whatsappServer.o: whatsappServer.cpp
 	$(CC) $(flags) -c whatsappServer.cpp -o whatsappServer.o
 
 whatsappClient.o: whatsappClient.cpp 
-	$(CC) $(flags) -c BlockStack.cpp -o BlockStack.o
+	$(CC) $(flags) -c whatsappClient.cpp -o whatsappClient.o
 
 whatsappServer: whatsappServer.o
 	$(CC) $(flags) whatsappServer.o -o whatsappServer

@@ -109,7 +109,7 @@ void startTraffic()
     	FD_SET(sockfd, &activeFdsSet);
     	FD_SET(0, &activeFdsSet);
         
-    	for (int i = 0; i < clients.size(); ++i)
+    	for (int i = 0; i < (int) clients.size(); ++i)
     	{
     		FD_SET(clients[i], &activeFdsSet);
     		topSocket = (clients[i] > topSocket) ? clients[i] : topSocket;
@@ -218,14 +218,14 @@ void print_custom_error(string Msg)
 
 
 /* testing function */
-int main2()
-{
-    const char* lcl_ip = "132.65.125.3";
-    string name = "Cookie";
-    const char* port = "4423";
-    init_server(port);
-    cout << KMAG<< "server is on:)" << endl;
-}
+// int main2()
+// {
+//     const char* lcl_ip = "132.65.125.3";
+//     string name = "Cookie";
+//     const char* port = "4423";
+//     init_server(port);
+//     cout << KMAG<< "server is on:)" << endl;
+// }
 
 int main(int argc, char* argv[])
 {
