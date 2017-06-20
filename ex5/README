@@ -1,0 +1,25 @@
+h3shiri, hadasba
+Shiri Heffetz (206098311), Hadas Baer (302306006)
+EX: 5
+
+FILES:
+whatsappServer.cpp -- the relevant code for the server side.
+whatsappClient.cpp -- the code for the client side.
+Makefile -- supporting various commands, such as creating the exexutables.
+README -- infromation on this project and answers to theoretical questoins.
+
+
+REMARKS:
+No special remarks this time around.
+The sun is a wonderful place.
+
+Design:
+=========================
+      Architecture 
+=========================
+
+
+ANSWERS:
+=========================
+  Theoretical Questions
+=========================

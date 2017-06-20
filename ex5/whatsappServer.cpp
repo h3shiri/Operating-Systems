@@ -231,7 +231,7 @@ int main(int argc, char* argv[])
 {
 	if( argc != 2 )
 	{
-        cout << KBLU << "pray use: emServer <portNum>" << endl << RST;
+        cout << KBLU << "pray use: Server <portNum>" << endl << RST;
         exit(ERROR);
     }
     openPort = stoi(argv[1]);
