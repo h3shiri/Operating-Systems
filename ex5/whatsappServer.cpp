@@ -17,9 +17,15 @@
 
 #define KBLU  "\x1B[34m"
 #define KMAG  "\x1B[35m"
+#define RST  "\x1B[0m"
+
 
 #define MAX_CLIENTS 10
 #define ERROR -1
+#define SUCCESS 0
+
+#define ESC_SEQ "EXIT"
+
 
 using namespace std; 
 
@@ -33,6 +39,9 @@ list<string> lClients;
 
 // actual relevent socket address.
 struct sockaddr_in my_addr;
+bool break_flag = false;
+
+int openPort;
 
 int init_server(const char* port)
 {
@@ -67,6 +76,7 @@ int init_server(const char* port)
 		print_error(eMsg);
         return ERROR;
 	}
+	return SUCCESS;
 }
 
 
@@ -78,11 +88,43 @@ void print_error(string Msg)
 
 
 /* testing function */
-int main()
+int main2()
 {
     const char* lcl_ip = "132.65.125.3";
     string name = "Cookie";
     const char* port = "4423";
     init_server(port);
     cout << KMAG<< "server is on:)" << endl;
+}
+
+int main(int argc, char* argv[])
+{
+	if( argc != 2 )
+	{
+        cout << KBLU << "pray use: emServer <portNum>" << endl << RST;
+        exit(ERROR);
+    }
+    openPort = stoi(argv[1]);
+    int check1 = init_server(argv[1]);
+    if (check1 < 0)
+    {
+        string eMsg = "failure in opening the server";
+        print_error(eMsg);
+        return ERROR;
+    }
+    return SUCCESS;
+}
+
+
+/* fetching input for the server */
+void* server_input(void* index)
+{
+    string command_buf;
+    getline(cin, command_buf);
+    while (command_buf.compare(ESC_SEQ))
+    {
+        getline(cin, command_buf);
+    } 
+    break_flag = true;
+    return nullptr;
 }
