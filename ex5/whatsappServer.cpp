@@ -9,8 +9,10 @@
 #include <list>
 #include <arpa/inet.h>
 #include <cstring>
+#include <netdb.h>
 
 #include <map>
+#include <asm/param.h>
 
 
 #define KBLU  "\x1B[34m"
@@ -32,20 +34,23 @@ list<string> lClients;
 // actual relevent socket address.
 struct sockaddr_in my_addr;
 
-int init_server(string name, const char* address, const char* port)
+int init_server(const char* port)
 {
+	char host_name[MAXHOSTNAMELEN+1];
+	host_name[MAXHOSTNAMELEN] = '\0';
+	struct hostent *host = NULL;
+	gethostname(host_name, MAXHOSTNAMELEN );
+    host = gethostbyname(host_name);
+
+
     my_addr.sin_family = AF_INET;
     int sockfd, portN;
 	sockfd =  socket(AF_INET, SOCK_STREAM, 0);
 	portN = stoi(port);
 	my_addr.sin_port = htons(portN);
-	int check1 = inet_aton(address, &(my_addr.sin_addr));
-    if (check1 <= 0)
-    {
-        string eMsg = "error resolving around finding address";
-        print_error(eMsg);
-        return ERROR;
-    }
+	memcpy(&my_addr.sin_addr, host->h_addr, host->h_length);
+    // legacy code for case of manual address 
+	// int check1 = inet_aton(host->h_addr, &(my_addr.sin_addr));
 	memset(&(my_addr.sin_zero), '\0', 8);
 
 	if (bind(sockfd, (struct sockaddr *) &my_addr,
@@ -56,7 +61,12 @@ int init_server(string name, const char* address, const char* port)
         return ERROR;
 	}
 
-	listen(sockfd, MAX_CLIENTS);
+	if(listen(sockfd, MAX_CLIENTS) < 0)
+	{
+		string eMsg = "failure in listening process";
+		print_error(eMsg);
+        return ERROR;
+	}
 }
 
 
@@ -73,6 +83,6 @@ int main()
     const char* lcl_ip = "132.65.125.3";
     string name = "Cookie";
     const char* port = "4423";
-    init_server(name, lcl_ip, port);
+    init_server(port);
     cout << KMAG<< "server is on:)" << endl;
 }
