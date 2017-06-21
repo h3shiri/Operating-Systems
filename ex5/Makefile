@@ -21,4 +21,15 @@ tar: Makefile README $(all_cpp)
 	tar -cvf ex5.tar Makefile README $(all_cpp)
 
 clean:
-	rm -f *.o ex5.tar whatsappServer whatsappClient *~ *core 
+	rm -f *.o ex5.tar whatsappServer whatsappClient whatsappClientTemp *~ *core 
+
+whatsappClientTemp.o: tempClient3.cpp
+	$(CC) $(flags) -c tempClient3.cpp -o whatsappClientTemp.o
+
+
+whatsappClientTemp: whatsappClientTemp.o
+	$(CC) $(flags) whatsappClientTemp.o -o whatsappClientTemp
+
+
+test: clean whatsappServer whatsappClientTemp
+
