@@ -218,12 +218,13 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
     // check group name isn't used
     if (!gGroups.count(groupName))
     {
-
+        gGroups
     }
     else
     {
-        string sMsgError = "ERROR:failed to create group ";
-        sMsgError += groupName + "\n";
+        string sClientMsgError = "ERROR:failed to create group ";
+        sMsgError += (groupName + ".\n");
+        passingData(clientSocketId);
     }
 }
 
