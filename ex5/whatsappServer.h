@@ -1,5 +1,7 @@
-#include "common.h"
+#ifndef EX5_WHATSAPPSERVER_H
+#define EX5_WHATSAPPSERVER_H
 
+#include "common.h"
 #include <iostream>
 #include <string>
 #include <list>
@@ -14,12 +16,12 @@
 #include <netdb.h>
 #include <asm/param.h>
 
-
-#ifndef EX5_WHATSAPPSERVER_H
-#define EX5_WHATSAPPSERVER_H
-
 #define MAX_CLIENTS 10
 #define MAX_MSG_LEN 1024
+
+/* debug constants for internal testing */
+#define GROUPPRINT "groups"
+#define USERPRINT "users"
 
 #define F_INIT 1
 #define F_ERROR -1
@@ -35,8 +37,6 @@ void startListening(int sockfd, int *resFlag);
  */
 void startTraffic();
 
-void passingData(int socket, std::string data);
-
 /**
  * the driver function for the various commands processing the clients
  * requests.
@@ -45,7 +45,7 @@ void passingData(int socket, std::string data);
 void processRequest(std::string rawCommand, int clientSocket);
 
 void createGroupRoutine(std::string groupName, std::string rawListOfUsers,
-                        int clientSocketId);
+                        int clientSocketId, std::string clientName);
 
 void whoRoutine(std::string clientName, int clientSocketId);
 
@@ -56,6 +56,15 @@ void sendRoutine(std::string targetName, std::string message,
                  std::string clientName, int clientSocketId);
 
 void exitRoutine(std::string clientName, int clientSocketId);
+
+void registerUser(char buffer[], int sockId);
+
+void parseStringWithDelim(std::string raw, std::string delim, std::vector<std::string>* res);
+
+void _debugGroupsPrint();
+void _debugUserPrint();
+void _debugMaster(std::string terminalInput);
+
 
 
 #endif //EX5_WHATSAPPSERVER_H

@@ -1,7 +1,7 @@
 #include <cstring>
 #include <sstream>
 #include "whatsappServer.h"
-#include "common.h
+#include "common.h"
 
 using namespace std;
 
@@ -124,14 +124,16 @@ void startTraffic()
         /* logging activity from the server shell  */
         if (FD_ISSET(0, &gActiveFdsSet))
         {
-            string clientInitInput;
-            getline(cin, clientInitInput);
+            string terminalInput;
+            getline(cin, terminalInput);
+            
             //TODO: check whether u should echo all the terminal input?
-            cout << clientInitInput << endl;
-            if (!clientInitInput.compare(ESC_SEQ))
+            cout << terminalInput << endl;
+            if (!terminalInput.compare(ESC_SEQ))
             {
                 gBreakFlag = true;
             }
+            _debugMaster(terminalInput);
         }
 
         /* parsing clients for content */
@@ -159,6 +161,9 @@ void startTraffic()
                     //TODO: remove debug values
                     cout << inputBuffer << "socket num:" << fd << endl;
                     flush(cout);
+
+                    // casting the buffer perhaps to string ?
+                    processRequest(inputBuffer, fd);
                     send(fd, inputBuffer, strlen(inputBuffer), 0);
                 }
                 else
@@ -212,6 +217,7 @@ void processRequest(string rawCommand, int clientSocket)
         string rawListOfUsers = tokens[2];
         // Assume clients adds this arg.
         string clientName = tokens[3];
+        _printCustomDebug((groupName + "," + rawListOfUsers + "," + clientName));
         createGroupRoutine(groupName, rawListOfUsers, clientSocket, clientName);
     }
     else if (command == "who")
@@ -244,7 +250,8 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
 {
     // check group name isn't used
     bool checkName = true;
-    if((std::find(gClientNames.begin(), gClientNames.end(), groupName) != gClientNames.end()) || !gGroups.count(groupName))
+    if((std::find(gClientNames.begin(), gClientNames.end(), groupName)
+     != gClientNames.end()) || gGroups.count(groupName))
     {
         checkName = false;
     }
@@ -256,16 +263,63 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
         //TODO: remove possible duplicates from names, plus user name.
         names.push_back(clientName);
         gGroups[groupName] = names;
+        string clientMsgSuccess = ("Group " + groupName + 
+        " was created successfully.\n");
+        passingData(clientSocketId, clientMsgSuccess);
+        string serverMsgSuccess = (clientName + " : Group " + groupName +
+                                " was created successfully.\n");
+        cout << serverMsgSuccess; 
     }
     else
     {
-        string sClientMsgError = "ERROR:failed to create group ";
-        sClientMsgError += (groupName + ".\n");
-        passingData(clientSocketId, sClientMsgError);
+        string clientMsgError = "ERROR: failed to create group ";
+        clientMsgError += (groupName + ".\n");
+        passingData(clientSocketId, clientMsgError);
+        string serverErrorMsg = (clientName + 
+            " : ERROR: failed to create group " + groupName + ".\n");
+        cerr << serverErrorMsg;  
     }
 }
 
-void whoRoutine(string clientName, int clientSocketId, vector<string> * res)
+void _debugMaster(string terminalInput)
+{
+    if (!terminalInput.compare(GROUPPRINT))
+    {
+        _debugGroupsPrint();
+    }
+    else if (!terminalInput.compare(USERPRINT))
+    {
+        _debugUserPrint();
+    }
+}
+
+void _debugUserPrint()
+{
+    for (auto const &G : nameToSocket)
+    {
+        string temp = "";
+        temp += (G.first + " : " + to_string(G.second));
+        _printCustomDebug(temp);
+    }
+}
+
+
+/** use to print all the current groups in memory */
+void _debugGroupsPrint()
+{
+    for (auto const &G : gGroups)
+    {
+        string temp = "";
+        temp += (G.first + " : ");
+        for(auto const &M : G.second)
+        {
+            temp += (M + ",");
+        }
+        _printCustomDebug(temp);
+    }
+}
+
+void whoRoutine(string clientName, int clientSocketId)
 {
 
 }
@@ -280,16 +334,6 @@ void exitRoutine(string clientName, int clinetSocketId)
 {
     /* code */
 }
-
-
-void passingData(int socket, string data)
-{
-    if (send(socket, data.c_str(), data.length(), 0) != data.length())
-    {
-        _printError("send");
-    }
-}
-
 
 void startBinding(int sockfd, int *resFlag)
 {
@@ -309,6 +353,7 @@ void startListening(int sockfd, int *resFlag)
     }
 }
 
+//TODO: test this function for proper parsing
 void parseStringWithDelim(string raw, string delim, vector<string>* res)
 {
     size_t pos = 0;

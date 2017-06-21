@@ -15,7 +15,7 @@ whatsappServer: whatsappServer.o
 	$(CC) $(flags) whatsappServer.o -o whatsappServer
 
 whatsappClient: whatsappClient.o
-	$(CC) $(flags) whatsappServer.o -o whatsappClient
+	$(CC) $(flags) whatsappClient.o -o whatsappClient
 
 tar: Makefile README $(all_cpp)
 	tar -cvf ex5.tar Makefile README $(all_cpp)

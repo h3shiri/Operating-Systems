@@ -1,5 +1,6 @@
 #include <string.h>
 #include "whatsappClient.h"
+#include "common.h"
 
 using namespace std;
 
@@ -26,7 +27,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
     gName = (string) argv[1];
-    portno = atoi(argv[3]);
+    portno = stoi(argv[3]);
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
     {
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
     {
         _printError("connect");
     }
-
+    passingData(sockfd, ("CLIENT " + gName));
     // passingData()
     while (gRunning)
     {
@@ -76,26 +77,4 @@ int main(int argc, char *argv[])
     }
     close(sockfd);
     return 0;
-}
-
-
-void passingData(int socket, string data)
-{
-    if (send(socket, data, data.length(), 0) != data.length())
-    {
-        _printError("send");
-    }
-}
-
-void _printCustomError(string Msg)
-{
-    cout << C_RED << Msg << C_RESET << endl;
-}
-
-/**
- * standard error in case of function failure in case of the server.
- */
-void _printError(string Msg)
-{
-    cerr << "F_ERROR: " << Msg << " " << errno << "." << endl;
 }

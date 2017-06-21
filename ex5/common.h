@@ -1,7 +1,9 @@
-#include <iostream>
-
 #ifndef EX5_COMMON_H
 #define EX5_COMMON_H
+
+#include <iostream>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #define MAX_CLIENTS 10
 #define MAX_MSG_LEN 1024
@@ -12,11 +14,21 @@
 
 #define ESC_SEQ "EXIT"
 
+using namespace std;
 
 void _printError(std::string msg)
 {
     std::cerr << "ERROR: " << msg << " " << errno << "." << std::endl;
 }
+
+void passingData(int socket, std::string data)
+{
+    if (send(socket, data.c_str(), data.length(), 0) != (ssize_t) data.length())
+    {
+        _printError("send");
+    }
+}
+
 
 #define DEBUG
 #ifdef DEBUG

@@ -1,5 +1,7 @@
-#include "common.h"
+#ifndef EX5_WHATSAPPCLIENT_H
+#define EX5_WHATSAPPCLIENT_H
 
+#include "common.h"
 #include <iostream>
 #include <string>
 #include <unistd.h>
@@ -9,8 +11,7 @@
 #include <netdb.h>
 
 
-#ifndef EX5_WHATSAPPCLIENT_H
-#define EX5_WHATSAPPCLIENT_H
+
 
 #define BUFFER_SIZE 256
 
