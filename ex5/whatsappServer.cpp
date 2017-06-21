@@ -31,7 +31,6 @@
 #define MSGMAX 1024
 
 #define ESC_SEQ "EXIT"
-string commands[] = {"create_group", "send", "who", "exit"};
 
 using namespace std; 
 
@@ -48,6 +47,7 @@ void sendRoutine(string targetName, string message,
                 string clientName, int clientSocketId);
 void sendRoutine(string targetName, string message, 
                 string clientName, int clientSocketId);
+void exitRoutine(string clientName, int clinetSocketId);
 
 /* data structs for the server side */
 
@@ -63,6 +63,8 @@ map<string, vector<int>> groups;
 // actual relevent socket address.
 struct sockaddr_in my_addr;
 bool break_flag = false;
+
+string commands[] = {"create_group", "send", "who", "exit"};
 
 /* holds the open port of this server */
 int openPort;
@@ -237,7 +239,7 @@ void processRequest(string rawCommand, int clinetSocket)
     else if (command == "who")
     {
         // Assuming client feeds his name to request.
-        sting clientName = tokens[1];
+        string clientName = tokens[1];
         whoRoutine(clientName, clinetSocket);
     }
     else if (command == "send")
@@ -249,7 +251,8 @@ void processRequest(string rawCommand, int clinetSocket)
     }
     else if (command == "exit")
     {
-        /* code */
+        string clientName = tokens[1];
+        exitRoutine(clientName, clinetSocket);
     }
     // invalid command
     else
@@ -275,6 +278,10 @@ void sendRoutine(string targetName, string message,
     /* code */
 }
 
+void exitRoutine(string clientName, int clinetSocketId)
+{
+    /* code */
+}
 
 
 void passingData(int socket, string data)
