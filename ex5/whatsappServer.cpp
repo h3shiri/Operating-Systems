@@ -13,7 +13,9 @@ vector<int> gClients;
 vector<int> gDelClients;
 
 /* the groups online in this server */
-map<string, vector<int>> gGroups;
+map<string, vector<string>> gGroups;
+
+map<string, int> nameToSocket;
 
 // actual relevant socket address.
 struct sockaddr_in gMyAddr;
@@ -109,7 +111,11 @@ void startTraffic()
             bool found = (std::find(gClients.begin(), gClients.end(), fresh_sock) != gClients.end());
             if (!found)
             {
-                gClients.push_back(fresh_sock);
+                // registering a new user
+                bzero(inputBuffer, MAX_MSG_LEN);
+                readFromSock = read(fresh_sock, inputBuffer, MAX_MSG_LEN);
+                registerUser(inputBuffer, fresh_sock);
+
             }
             //TODO: check that the format is fine, server side.
             cout << "client " << fresh_sock << " connected." << endl;
@@ -169,6 +175,25 @@ void startTraffic()
     }
 }
 
+// buffer contains the init data.
+void registerUser(char buffer[], int sockId)
+{
+    vector<string> commands;
+    istringstream iss(buffer);
+    vector<string> tokens{istream_iterator<string>{iss},
+                          istream_iterator<string>{}};
+    string check = tokens[0];
+    string name = tokens[1];
+    if (check == "CLIENT")
+    {
+        nameToSocket[name] = sockId;
+        gClients.push_back(sockId);
+    }
+    // In case of malformatted content from the user
+    else {
+        _printCustomError("User sent an illegal");
+    }
+}
 
 void processRequest(string rawCommand, int clientSocket)
 {
@@ -218,13 +243,13 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
     // check group name isn't used
     if (!gGroups.count(groupName))
     {
-        gGroups
+        
     }
     else
     {
         string sClientMsgError = "ERROR:failed to create group ";
-        sMsgError += (groupName + ".\n");
-        passingData(clientSocketId);
+        sClientMsgError += (groupName + ".\n");
+        passingData(clientSocketId, sClientMsgError);
     }
 }
 
