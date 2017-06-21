@@ -60,7 +60,7 @@ void sendRoutine(string targetName, string message,
 void sendRoutine(string targetName, string message,
                  string clientName, int clientSocketId);
 
-void exitRoutine(string clientName, int clinetSocketId);
+void exitRoutine(string clientName, int clientSocketId);
 
 
 #endif //EX5_WHATSAPPSERVER_H

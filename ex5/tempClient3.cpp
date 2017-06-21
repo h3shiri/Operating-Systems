@@ -31,18 +31,21 @@ void passingData(int socket, string data);
 string name;
 bool running = true;
 
-void error(const char *msg) {
+void error(const char *msg)
+{
     perror(msg);
     exit(0);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     int sockfd, portno, n;
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
     char buffer[MSG];
-    if (argc != 4) {
+    if (argc != 4)
+    {
         string eMsg = "Usage: whatsappClient clientName serveraddress serverPort";
         cout << eMsg << endl;
         exit(0);
@@ -51,9 +54,12 @@ int main(int argc, char *argv[]) {
     portno = atoi(argv[3]);
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
+    {
         _printError("socket");
+    }
     server = gethostbyname(argv[2]);
-    if (server == NULL) {
+    if (server == NULL)
+    {
         printCustomError("didn't find the host!");
         exit(0);
     }
@@ -64,24 +70,32 @@ int main(int argc, char *argv[]) {
           server->h_length);
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+    {
         _printError("connect");
+    }
 
     // passingData()
-    while (running) {
+    while (running)
+    {
         bzero(buffer, MSG);
         fgets(buffer, MSG - 1, stdin);
 
         n = write(sockfd, buffer, strlen(buffer));
         //TODO: set condition for breaking from the session.
-        if (n == 0) {
+        if (n == 0)
+        {
             continue;
         }
         if (n < 0)
+        {
             _printError("write");
+        }
         bzero(buffer, MSG);
         n = read(sockfd, buffer, MSG - 1);
         if (n < 0)
+        {
             _printError("read");
+        }
 
         printf("%s\n", buffer);
     }
@@ -90,19 +104,23 @@ int main(int argc, char *argv[]) {
 }
 
 
-void passingData(int socket, string data) {
-    if (send(socket, data, data.length(), 0) != data.length()) {
+void passingData(int socket, string data)
+{
+    if (send(socket, data, data.length(), 0) != data.length())
+    {
         _printError("send");
     }
 }
 
-void printCustomError(string Msg) {
+void printCustomError(string Msg)
+{
     cout << KMAG << Msg << C_RESET << endl;
 }
 
 /**
  * standard error in case of function failure in case of the server.
  */
-void _printError(string Msg) {
+void _printError(string Msg)
+{
     cerr << "F_ERROR: " << Msg << " " << errno << "." << endl;
 }
