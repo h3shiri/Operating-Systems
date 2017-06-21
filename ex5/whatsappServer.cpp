@@ -211,9 +211,27 @@ void processRequest(string rawCommand, int clientSocket) {
     }
 }
 
+<<<<<<< Updated upstream
 void createGroupRoutine(string groupName, string rawListOfUsers,
                         int clientSocketId) {
     /* code */
+=======
+void cretateGroupRoutine(string groupName, string rawListOfUsers,
+                         int clientSocketId)
+{
+    
+    // check group name isn't used
+    if(!groups.count(groupName))
+    {
+
+    }
+    else
+    {
+        string sMsgError = "ERROR:failed to create group ";
+        sMsgError += (groupName + '\n');
+        cout   
+    }
+>>>>>>> Stashed changes
 }
 
 void whoRoutine(string clientName, int clientSocketId) {

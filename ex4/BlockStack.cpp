@@ -7,7 +7,6 @@
 #include <math.h>
 #include <algorithm>
 
-// #TODO: check name is a quality comparison between blocks.
 
 BlockStack::BlockStack(int totalNumOfBlocks, int policy, double f_old , double f_new)
 {
@@ -159,7 +158,6 @@ void BlockStack::updateAgeStack()
  */
 int BlockStack::LRU_Algo()
 {
-    //TODO: check memory is actually freed by the default destructor.
     if (numOfActiveBlock < totalNumOfBlocks)
     {
         return ERROR;
@@ -203,7 +201,6 @@ int BlockStack::LFU_Algo()
  */
 int BlockStack::FBR_Algo()
 {
-    //TODO: test edge case one element, no old section ..etc
     /* Only deleting from the proper old section. */
     // Running from the left end of old right direction and comparing.
     Block * tempBl = _stack.at((unsigned long)indexOfOld);
@@ -262,7 +259,6 @@ int BlockStack::printLogTofile(ofstream &fileStream)
             if (bl->getRefCount() > 0)
             {
                 string app = bl->getName() + delim + std::to_string(bl->getIndex());
-                //TODO: check possible extra break on the last line.
                 fileStream << app << std::endl;
             }
         }
@@ -276,7 +272,6 @@ int BlockStack::printLogTofile(ofstream &fileStream)
             if (bl->getRefCount() > 0)
             {
                 string app = bl->getName() + delim + std::to_string(bl->getIndex());
-                //TODO: check possible extra break on the last line.
                 fileStream << app << std::endl;
             }
         }

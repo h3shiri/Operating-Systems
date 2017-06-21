@@ -14,3 +14,6 @@ add_executable(test2 ${SOURCE_FILES})
 
 set(SOURCE_FILES uthreads.cpp Thread.cpp fb_tests/test14.cpp)
 add_executable(test14 ${SOURCE_FILES})
+
+set(SOURCE_FILES uthreads.cpp Thread.cpp sync_test.cpp)
+add_executable(syncTest ${SOURCE_FILES})

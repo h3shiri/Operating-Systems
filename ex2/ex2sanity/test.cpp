@@ -1,5 +1,7 @@
 #include "uthreads.h"
-
+#include "signal.h"
+#include <stdio.h>
+#include <sys/time.h>
 #include <iostream>
 
 void f (void)
