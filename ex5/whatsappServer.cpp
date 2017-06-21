@@ -1,34 +1,6 @@
+#include <cstring>
+#include <sstream>
 #include "whatsappServer.h"
-
-#define DEBUG
-
-#ifdef DEBUG
-
-#define C_BLUE  "\x1B[34m"
-#define C_RED   "\x1B[35m"
-#define C_RESET "\x1B[0m"
-
-void printCustomError(string msg)
-{
-    cout << C_RED << msg << C_RESET << endl;
-}
-
-void printCustomDebug(string msg)
-{
-    cout << C_BLUE << msg << C_RESET << endl;
-}
-
-void printCustomDebug(ssize_t msg)
-{
-    cout << C_BLUE << msg << C_RESET << endl;
-}
-
-#else
-void printCustomError(string msg) { }
-void printCustomDebug(string msg) { }
-void printCustomDebug(ssize_t msg) { }
-#endif  //IS_DEBUG
-
 
 using namespace std;
 
@@ -61,10 +33,6 @@ int gSockfd;
 /* A set for the active fds */
 fd_set gActiveFdsSet;
 
-void _printError(string Msg)
-{
-    cerr << "F_ERROR: " << Msg << " " << errno << "." << endl;
-}
 
 // TODO: make sure errors comply with the expected format
 
@@ -136,7 +104,7 @@ void startTraffic()
             // initial pass letting the socket now, session is established.
             if (send(fresh_sock, "ALIVE", 5, 0) != 5)
             {
-                printCustomError("issue in establishing communication");
+                _printCustomError("issue in establishing communication");
             }
             bool found = (std::find(gClients.begin(), gClients.end(), fresh_sock) != gClients.end());
             if (!found)
@@ -168,7 +136,7 @@ void startTraffic()
                 bzero(inputBuffer, MAX_MSG_LEN);
                 readFromSock = read(fd, inputBuffer, MAX_MSG_LEN);
                 // TODO: remove length debug
-                printCustomDebug(readFromSock);
+                _printCustomDebug(readFromSock);
                 //TODO: migrate to input processor.
                 if (readFromSock == 0)
                 {
@@ -240,7 +208,7 @@ void processRequest(string rawCommand, int clientSocket)
         // invalid command
     else
     {
-        printCustomError("invalid command from the user");
+        _printCustomError("invalid command from the user");
     }
 }
 
@@ -311,7 +279,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 2)
     {
-        printCustomDebug("pray use: Server <portNum>");
+        _printCustomDebug("pray use: Server <portNum>");
         exit(F_ERROR);
     }
 

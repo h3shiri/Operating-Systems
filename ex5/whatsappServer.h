@@ -1,26 +1,22 @@
-#ifndef EX5_WHATSAPPSERVER_H
-#define EX5_WHATSAPPSERVER_H
+#include "common.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string>
-#include <unistd.h>
 #include <iostream>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include <string>
 #include <list>
 #include <vector>
-#include <arpa/inet.h>
-#include <cstring>
-#include <netdb.h>
 #include <algorithm>
-
 #include <map>
+#include <iterator>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <asm/param.h>
 
-#include <sstream>
-#include <iterator>
 
+#ifndef EX5_WHATSAPPSERVER_H
+#define EX5_WHATSAPPSERVER_H
 
 #define MAX_CLIENTS 10
 #define MAX_MSG_LEN 1024
@@ -29,7 +25,6 @@
 #define F_ERROR -1
 #define F_SUCCESS 0
 
-#define ESC_SEQ "EXIT"
 
 void startBinding(int sockfd, int *resFlag);
 
@@ -40,27 +35,27 @@ void startListening(int sockfd, int *resFlag);
  */
 void startTraffic();
 
-void passingData(int socket, string data);
+void passingData(int socket, std::string data);
 
 /**
  * the driver function for the various commands processing the clients
  * requests.
  * assuming valid input from the client.
  */
-void processRequest(string rawCommand, int clientSocket);
+void processRequest(std::string rawCommand, int clientSocket);
 
-void createGroupRoutine(string groupName, string rawListOfUsers,
+void createGroupRoutine(std::string groupName, std::string rawListOfUsers,
                         int clientSocketId);
 
-void whoRoutine(string clientName, int clientSocketId);
+void whoRoutine(std::string clientName, int clientSocketId);
 
-void sendRoutine(string targetName, string message,
-                 string clientName, int clientSocketId);
+void sendRoutine(std::string targetName, std::string message,
+                 std::string clientName, int clientSocketId);
 
-void sendRoutine(string targetName, string message,
-                 string clientName, int clientSocketId);
+void sendRoutine(std::string targetName, std::string message,
+                 std::string clientName, int clientSocketId);
 
-void exitRoutine(string clientName, int clientSocketId);
+void exitRoutine(std::string clientName, int clientSocketId);
 
 
 #endif //EX5_WHATSAPPSERVER_H

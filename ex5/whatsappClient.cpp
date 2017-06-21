@@ -1,35 +1,10 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
-
-#include <string>
-#include <iostream>
-
-
-#define MAX_MSG_LEN 1024
-#define MSG 256
-#define C_BLUE  "\x1B[34m"
-#define KMAG  "\x1B[35m"
-#define C_RESET  "\x1B[0m"
-#define F_ERROR -1
-#define F_SUCCESS 0
+#include "whatsappClient.h"
 
 using namespace std;
 
-
-void _printError(string Msg);
-
-void printCustomError(string msg);
-
-void passingData(int socket, string data);
-
-string name;
-bool running = true;
+string gName;
+bool gRunning = true;
 
 void error(const char *msg)
 {
@@ -39,18 +14,18 @@ void error(const char *msg)
 
 int main(int argc, char *argv[])
 {
-    int sockfd, portno, n;
+    int sockfd, portno;
+    ssize_t n;
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
-    char buffer[MSG];
+    char buffer[BUFFER_SIZE];
     if (argc != 4)
     {
-        string eMsg = "Usage: whatsappClient clientName serveraddress serverPort";
-        cout << eMsg << endl;
+        cout << "Usage: whatsappClient clientName serveraddress serverPort" << endl;
         exit(0);
     }
-    name = (string) argv[1];
+    gName = (string) argv[1];
     portno = atoi(argv[3]);
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
@@ -60,7 +35,7 @@ int main(int argc, char *argv[])
     server = gethostbyname(argv[2]);
     if (server == NULL)
     {
-        printCustomError("didn't find the host!");
+        _printCustomError("didn't find the host!");
         exit(0);
     }
     bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -75,10 +50,10 @@ int main(int argc, char *argv[])
     }
 
     // passingData()
-    while (running)
+    while (gRunning)
     {
-        bzero(buffer, MSG);
-        fgets(buffer, MSG - 1, stdin);
+        bzero(buffer, BUFFER_SIZE);
+        fgets(buffer, BUFFER_SIZE - 1, stdin);
 
         n = write(sockfd, buffer, strlen(buffer));
         //TODO: set condition for breaking from the session.
@@ -90,8 +65,8 @@ int main(int argc, char *argv[])
         {
             _printError("write");
         }
-        bzero(buffer, MSG);
-        n = read(sockfd, buffer, MSG - 1);
+        bzero(buffer, BUFFER_SIZE);
+        n = read(sockfd, buffer, BUFFER_SIZE - 1);
         if (n < 0)
         {
             _printError("read");
@@ -112,9 +87,9 @@ void passingData(int socket, string data)
     }
 }
 
-void printCustomError(string Msg)
+void _printCustomError(string Msg)
 {
-    cout << KMAG << Msg << C_RESET << endl;
+    cout << C_RED << Msg << C_RESET << endl;
 }
 
 /**
