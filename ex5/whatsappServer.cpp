@@ -1,345 +1,272 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string>
-#include <unistd.h>
-#include <iostream>
-#include <sys/types.h> 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <list>
-#include <vector>
-#include <arpa/inet.h>
-#include <cstring>
-#include <netdb.h>
-#include <algorithm>
+#include "whatsappServer.h"
 
-#include <map>
-#include <asm/param.h>
+#define DEBUG
 
-#include <sstream>
-#include <iterator>
+#ifdef DEBUG
+
+#define C_BLUE  "\x1B[34m"
+#define C_RED   "\x1B[35m"
+#define C_RESET "\x1B[0m"
+
+void printCustomError(string msg) {
+    cout << C_RED << msg << C_RESET << endl;
+}
+
+void printCustomDebug(string msg) {
+    cout << C_BLUE << msg << C_RESET << endl;
+}
+
+void printCustomDebug(ssize_t msg) {
+    cout << C_BLUE << msg << C_RESET << endl;
+}
+
+#else
+void printCustomError(string msg) { }
+void printCustomDebug(string msg) { }
+void printCustomDebug(ssize_t msg) { }
+#endif  //IS_DEBUG
 
 
-#define KBLU  "\x1B[34m"
-#define KMAG  "\x1B[35m"
-#define RST  "\x1B[0m"
-
-
-#define MAX_CLIENTS 10
-#define ERROR -1
-#define SUCCESS 0
-#define MSGMAX 1024
-
-#define ESC_SEQ "EXIT"
-
-using namespace std; 
-
-void print_error(string Msg);
-void print_custom_error(string Msg);
-void startBinding(int sockfd, int* resFlag);
-void startListening(int sockfd, int * resFlag);
-void startTraffic();
-void passingData(int socket, string data);
-void cretateGroupRoutine(string groupName, string rawListOfUsers,
-                         int clientSocketId);
-void whoRoutine(string clientName, int clientSocketId);
-void sendRoutine(string targetName, string message, 
-                string clientName, int clientSocketId);
-void sendRoutine(string targetName, string message, 
-                string clientName, int clientSocketId);
-void exitRoutine(string clientName, int clinetSocketId);
+using namespace std;
 
 /* data structs for the server side */
 
 // list of the relevant active clients.
-list<string> lClientsByName;
+list <string> glClientsByName;
 
-vector<int> clients;
-vector<int> del_clients;
+vector<int> gClients;
+vector<int> gDelClients;
 
 /* the groups online in this server */
-map<string, vector<int>> groups;
+map<string, vector<int>> gGroups;
 
-// actual relevent socket address.
-struct sockaddr_in my_addr;
-bool break_flag = false;
+// actual relevant socket address.
+struct sockaddr_in gMyAddr;
+bool gBreakFlag = false;
 
-string commands[] = {"create_group", "send", "who", "exit"};
+string gCommands[] = {"create_group", "send", "who", "exit"};
 
 /* holds the open port of this server */
-int openPort;
+int gOpenPort;
 
 /* holds the currently highest socket open */
-int max_soc;
+int gMaxSocket;
 
 /* holds our local socket for this server */
-int sockfd;
+int gSockfd;
 
 /* A set for the active fds */
-fd_set activeFdsSet;
+fd_set gActiveFdsSet;
 
-
-//TODO: make sure errors comply with the expected format
-
-int init_server(const char* port)
-{
-    //TODO: remeber to remove hardcoding address.
-    const char hostM[10] = "127.0.0.1"; 
-	char host_name[MAXHOSTNAMELEN+1];
-	host_name[MAXHOSTNAMELEN] = '\0';
-	struct hostent *host = NULL;
-	gethostname(host_name, MAXHOSTNAMELEN );
-    //TODO:  mend and test on server.
-    host = gethostbyname(hostM);
-
-    my_addr.sin_family = AF_INET;
-	sockfd =  socket(AF_INET, SOCK_STREAM, 0);
-	openPort = stoi(port);
-	my_addr.sin_port = htons(openPort);
-	memcpy(&my_addr.sin_addr, host->h_addr, host->h_length);
-    
-    // legacy code for case of manual address 
-	// int check1 = inet_aton(host->h_addr, &(my_addr.sin_addr));
-	memset(&(my_addr.sin_zero), '\0', 8);
-	int initFlag = 1;
-	startBinding(sockfd, &initFlag);
-	startListening(sockfd, &initFlag);
-	if (initFlag < 0)
-	{
-		return ERROR;
-	}
-	max_soc = sockfd;
-	startTraffic();
-
-	return SUCCESS;
+void _printError(string Msg) {
+    cerr << "F_ERROR: " << Msg << " " << errno << "." << endl;
 }
 
-/**
- * the actuall trafic for the sever accepting incoming connections..etc
- */
-void startTraffic()
-{
+// TODO: make sure errors comply with the expected format
+
+int initServer(const char *port) {
+    const char hostM[10] = "127.0.0.1"; // TODO: remember to remove hard coding address.
+    char host_name[MAXHOSTNAMELEN + 1];
+    host_name[MAXHOSTNAMELEN] = '\0';
+    struct hostent *host = NULL;
+    gethostname(host_name, MAXHOSTNAMELEN);
+    host = gethostbyname(hostM); // TODO:  mend and test on server.
+
+    gMyAddr.sin_family = AF_INET;
+    gSockfd = socket(AF_INET, SOCK_STREAM, 0);
+    gOpenPort = stoi(port);
+    gMyAddr.sin_port = htons((uint16_t) gOpenPort);
+    memcpy(&gMyAddr.sin_addr, host->h_addr, host->h_length);
+
+    // legacy code for case of manual address 
+    // int check1 = inet_aton(host->h_addr, &(gMyAddr.sin_addr));
+    memset(&(gMyAddr.sin_zero), '\0', 8);
+    int initFlag = F_INIT;
+    startBinding(gSockfd, &initFlag);
+    startListening(gSockfd, &initFlag);
+    if (initFlag == F_ERROR) {
+        return F_ERROR;
+    }
+    gMaxSocket = gSockfd;
+    startTraffic();
+
+    return F_SUCCESS;
+}
+
+
+void startTraffic() {
     int fresh_sock;
-	int sSize = sizeof(my_addr); 
-	int toss, readFromSock;
-	char inputBuffer[MSGMAX+1];
-    while (!break_flag)
-    {
-    	int topSocket = sockfd;
-    	FD_ZERO(&activeFdsSet);
-    	FD_SET(sockfd, &activeFdsSet);
-    	FD_SET(0, &activeFdsSet);
-        
-    	for (int i = 0; i < (int) clients.size(); ++i)
-    	{
-    		FD_SET(clients[i], &activeFdsSet);
-    		topSocket = (clients[i] > topSocket) ? clients[i] : topSocket;
-    	}
-        toss = select(topSocket + 1, &activeFdsSet, nullptr, nullptr, nullptr);
-        if (toss < 0)
-        {
-        	string eMsg = "select";
-        	print_error(eMsg);
+    int sSize = sizeof(gMyAddr);
+    int toss;
+    ssize_t readFromSock;
+    char inputBuffer[MAX_MSG_LEN + 1];
+
+    while (!gBreakFlag) {
+        int topSocket = gSockfd;
+        FD_ZERO(&gActiveFdsSet);
+        FD_SET(gSockfd, &gActiveFdsSet);
+        FD_SET(0, &gActiveFdsSet);
+
+        for (int i = 0; i < (int) gClients.size(); ++i) {
+            FD_SET(gClients[i], &gActiveFdsSet);
+            topSocket = (gClients[i] > topSocket) ? gClients[i] : topSocket;
         }
-        if (FD_ISSET(sockfd, &activeFdsSet))
-        {
-        	if ((fresh_sock = accept(sockfd, (struct  sockaddr *) &my_addr, (socklen_t *) &sSize)) < 0)
-        	{
-        		string eMsg = "accept";
-        		print_error(eMsg);
-        	}
-        	// initial pass letting the coket now, session is established.
-        	if (send(fresh_sock, "ALIVE", 5, 0) != 5)
-        	{
-        		print_custom_error("issue in establishing communication");
-        	}
-            bool found = (std::find(clients.begin(), clients.end(), fresh_sock) != clients.end());
-            if (!found)
-            {
-                clients.push_back(fresh_sock);
+        toss = select(topSocket + 1, &gActiveFdsSet, nullptr, nullptr, nullptr);
+        if (toss < 0) {
+            string eMsg = "select";
+            _printError(eMsg);
+        }
+        if (FD_ISSET(gSockfd, &gActiveFdsSet)) {
+            if ((fresh_sock = accept(gSockfd, (struct sockaddr *) &gMyAddr, (socklen_t *) &sSize)) < 0) {
+                string eMsg = "accept";
+                _printError(eMsg);
             }
-        	//TODO: check that the format is fine, server side.
-        	cout << "client " << fresh_sock << " connected." << endl;
+            // initial pass letting the coket now, session is established.
+            if (send(fresh_sock, "ALIVE", 5, 0) != 5) {
+                printCustomError("issue in establishing communication");
+            }
+            bool found = (std::find(gClients.begin(), gClients.end(), fresh_sock) != gClients.end());
+            if (!found) {
+                gClients.push_back(fresh_sock);
+            }
+            //TODO: check that the format is fine, server side.
+            cout << "client " << fresh_sock << " connected." << endl;
         }
         /* logging activity from the server shell  */
-        if (FD_ISSET(0, &activeFdsSet))
-        {
-        	string clientInitInput;
-        	getline(cin, clientInitInput);
+        if (FD_ISSET(0, &gActiveFdsSet)) {
+            string clientInitInput;
+            getline(cin, clientInitInput);
             //TODO: check whether u should echo all the terminal input?
-        	cout << clientInitInput << endl;
-            if (!clientInitInput.compare(ESC_SEQ))
-            {
-                break_flag = true;
+            cout << clientInitInput << endl;
+            if (!clientInitInput.compare(ESC_SEQ)) {
+                gBreakFlag = true;
             }
         }
 
         /* parsing clients for content */
-        for (auto fd : clients)
-        {
-        	if (FD_ISSET(fd, &activeFdsSet))
-        	{
+        for (auto fd : gClients) {
+            if (FD_ISSET(fd, &gActiveFdsSet)) {
                 // cleaning the buffer prior to reading
-                bzero(inputBuffer,MSGMAX);
-                readFromSock = read(fd, inputBuffer, MSGMAX);
+                bzero(inputBuffer, MAX_MSG_LEN);
+                readFromSock = read(fd, inputBuffer, MAX_MSG_LEN);
                 // TODO: remove length debug
-                cout << KBLU << readFromSock << RST << endl;
-        		//TODO: migrate to input processor.
-                if (readFromSock == 0)
-        		{
-        			// client has no input
-        			//TODO: check he actually disconnected.
-        			close(fd);
-        			del_clients.push_back(fd);
-        		}
-        		else if (readFromSock > 0)
-        		{
-        			char closer = '\0';
-        			inputBuffer[MSGMAX] = closer;
-        			//TODO: remove debug values
-        			cout << inputBuffer << "socket num:" << fd << endl;
-        			flush(cout);
-        			send(fd, inputBuffer, strlen(inputBuffer), 0);
-        		} else {
-        			print_error("read");
-        		}
-        	}
+                printCustomDebug(readFromSock);
+                //TODO: migrate to input processor.
+                if (readFromSock == 0) {
+                    // client has no input
+                    //TODO: check he actually disconnected.
+                    close(fd);
+                    gDelClients.push_back(fd);
+                } else if (readFromSock > 0) {
+                    char closer = '\0';
+                    inputBuffer[MAX_MSG_LEN] = closer;
+                    //TODO: remove debug values
+                    cout << inputBuffer << "socket num:" << fd << endl;
+                    flush(cout);
+                    send(fd, inputBuffer, strlen(inputBuffer), 0);
+                } else {
+                    _printError("read");
+                }
+            }
         }
         /* clearing the closed clients */
-        for (auto fd : del_clients)
-        {
-            clients.erase(remove(clients.begin(), clients.end(), fd), clients.end());
+        for (auto fd : gDelClients) {
+            gClients.erase(remove(gClients.begin(), gClients.end(), fd), gClients.end());
         }
-        del_clients.clear();
+        gDelClients.clear();
     }
 }
 
-/**
- * the driver function for the various commands processing the clients
- * requests. 
- * assuming valid input from the client.
- */
-void processRequest(string rawCommand, int clinetSocket)
-{
-    vector<string> commands ;
+
+void processRequest(string rawCommand, int clientSocket) {
+    vector<string> commands;
     istringstream iss(rawCommand);
-    vector<string> tokens{istream_iterator<string>{iss}, 
-                            istream_iterator<string>{}};
+    vector<string> tokens{istream_iterator<string>{iss},
+                          istream_iterator<string>{}};
 
     string command = tokens[0];
 
-    if (command == "create_group")
-    {
+    if (command == "create_group") {
         string groupName = tokens[1];
         string rawListOfUsers = tokens[2];
         // Assume clients adds this arg.
         string clientName = tokens[3];
-        cretateGroupRoutine(groupName, rawListOfUsers, clinetSocket);
-    }
-    else if (command == "who")
-    {
+        createGroupRoutine(groupName, rawListOfUsers, clientSocket);
+    } else if (command == "who") {
         // Assuming client feeds his name to request.
         string clientName = tokens[1];
-        whoRoutine(clientName, clinetSocket);
-    }
-    else if (command == "send")
-    {
+        whoRoutine(clientName, clientSocket);
+    } else if (command == "send") {
         string targetName = tokens[1];
         string message = tokens[2];
         string clientName = tokens[3];
-        sendRoutine(targetName, message, clientName, clinetSocket);
-    }
-    else if (command == "exit")
-    {
+        sendRoutine(targetName, message, clientName, clientSocket);
+    } else if (command == "exit") {
         string clientName = tokens[1];
-        exitRoutine(clientName, clinetSocket);
+        exitRoutine(clientName, clientSocket);
     }
-    // invalid command
-    else
-    {
-        print_custom_error("invalid command from the user");
+        // invalid command
+    else {
+        printCustomError("invalid command from the user");
     }
 }
 
-void cretateGroupRoutine(string groupName, string rawListOfUsers,
-                         int clientSocketId)
-{
+void createGroupRoutine(string groupName, string rawListOfUsers,
+                        int clientSocketId) {
     /* code */
 }
 
-void whoRoutine(string clientName, int clientSocketId)
-{
+void whoRoutine(string clientName, int clientSocketId) {
     /* code */
 }
 
-void sendRoutine(string targetName, string message, 
-                string clientName, int clientSocketId)
-{
+void sendRoutine(string targetName, string message,
+                 string clientName, int clientSocketId) {
     /* code */
 }
 
-void exitRoutine(string clientName, int clinetSocketId)
-{
+void exitRoutine(string clientName, int clinetSocketId) {
     /* code */
 }
 
 
-void passingData(int socket, string data)
-{
-    if (send(socket, data.c_str(), data.length(), 0) != data.length())
-    {
-        print_error("send");
+void passingData(int socket, string data) {
+    if (send(socket, data.c_str(), data.length(), 0) != data.length()) {
+        _printError("send");
     }
 }
 
 
-void startBinding(int sockfd, int* resFlag)
-{
-	if (bind(sockfd, (struct sockaddr *) &my_addr,
-	              sizeof(my_addr)) < 0)
-		{
-			print_error("bind");
-	        *resFlag = ERROR;
-		}
+void startBinding(int sockfd, int *resFlag) {
+    if (bind(sockfd, (struct sockaddr *) &gMyAddr, sizeof(gMyAddr)) < 0) {
+        _printError("bind");
+        *resFlag = F_ERROR;
+    }
 }
 
-void startListening(int sockfd, int * resFlag)
-{
-	if(listen(sockfd, MAX_CLIENTS) < 0)
-	{
-		print_error("listen");
-        *resFlag = ERROR;
-	}
+void startListening(int sockfd, int *resFlag) {
+    if (listen(sockfd, MAX_CLIENTS) < 0) {
+        _printError("listen");
+        *resFlag = F_ERROR;
+    }
 }
+
 
 /**
  * standard error in case of function failure in case of the server.
  */
-void print_error(string Msg)
-{
-	cerr << "ERROR: "<< Msg << " "<< errno << "." << endl;
-}
-
-void print_custom_error(string Msg)
-{
-	cout << KMAG << Msg << RST << endl;
-}
-
-
-int main(int argc, char* argv[])
-{
-	if( argc != 2 )
-	{
-        cout << KBLU << "pray use: Server <portNum>" << endl << RST;
-        exit(ERROR);
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        printCustomDebug("pray use: Server <portNum>");
+        exit(F_ERROR);
     }
-    openPort = stoi(argv[1]);
-    int check1 = init_server(argv[1]);
-    if (check1 < 0)
-    {
+
+    gOpenPort = stoi(argv[1]);
+    int check1 = initServer(argv[1]);
+    if (check1 == F_ERROR) {
         string eMsg = "failure in opening the server";
-        print_error(eMsg);
-        return ERROR;
+        _printError(eMsg);
+        return F_ERROR;
     }
-    return SUCCESS;
+    return F_SUCCESS;
 }
