@@ -1,15 +1,16 @@
 #include <cstring>
 #include <sstream>
 #include "whatsappServer.h"
+#include "common.h
 
 using namespace std;
 
 /* data structs for the server side */
 
 // list of the relevant active clients.
-list <string> glClientsByName;
 
 vector<int> gClients;
+vector<string> gClientNames;
 vector<int> gDelClients;
 
 /* the groups online in this server */
@@ -188,8 +189,9 @@ void registerUser(char buffer[], int sockId)
     {
         nameToSocket[name] = sockId;
         gClients.push_back(sockId);
+        gClientNames.push_back(name);
     }
-    // In case of malformatted content from the user
+    // In case of malformed content from the user
     else {
         _printCustomError("User sent an illegal");
     }
@@ -210,7 +212,7 @@ void processRequest(string rawCommand, int clientSocket)
         string rawListOfUsers = tokens[2];
         // Assume clients adds this arg.
         string clientName = tokens[3];
-        createGroupRoutine(groupName, rawListOfUsers, clientSocket);
+        createGroupRoutine(groupName, rawListOfUsers, clientSocket, clientName);
     }
     else if (command == "who")
     {
@@ -238,12 +240,22 @@ void processRequest(string rawCommand, int clientSocket)
 }
 
 void createGroupRoutine(string groupName, string rawListOfUsers,
-                        int clientSocketId)
+                        int clientSocketId, string clientName)
 {
     // check group name isn't used
-    if (!gGroups.count(groupName))
+    bool checkName = true;
+    if((std::find(gClientNames.begin(), gClientNames.end(), groupName) != gClientNames.end()) || !gGroups.count(groupName))
     {
-        
+        checkName = false;
+    }
+    if (checkName)
+    {
+        vector<string> names;
+        string delim = ",";
+        parseStringWithDelim(rawListOfUsers, delim, &names);
+        //TODO: remove possible duplicates from names, plus user name.
+        names.push_back(clientName);
+        gGroups[groupName] = names;
     }
     else
     {
@@ -253,9 +265,9 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
     }
 }
 
-void whoRoutine(string clientName, int clientSocketId)
+void whoRoutine(string clientName, int clientSocketId, vector<string> * res)
 {
-    /* code */
+
 }
 
 void sendRoutine(string targetName, string message,
@@ -297,6 +309,16 @@ void startListening(int sockfd, int *resFlag)
     }
 }
 
+void parseStringWithDelim(string raw, string delim, vector<string>* res)
+{
+    size_t pos = 0;
+    string token;
+    while ((pos = raw.find(delim)) != string::npos) {
+        token = raw.substr(0, pos);
+        res->insert(res->begin(), token);
+        raw.erase(0, pos + delim.length());
+    }
+}
 
 /**
  * standard error in case of function failure in case of the server.
