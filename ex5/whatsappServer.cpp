@@ -31,7 +31,7 @@
 #define MSGMAX 1024
 
 #define ESC_SEQ "EXIT"
-
+string commands[] = {"create_group", "send", "who", "exit"};
 
 using namespace std; 
 
@@ -41,7 +41,13 @@ void startBinding(int sockfd, int* resFlag);
 void startListening(int sockfd, int * resFlag);
 void startTraffic();
 void passingData(int socket, string data);
-
+void cretateGroupRoutine(string groupName, string rawListOfUsers,
+                         int clientSocketId);
+void whoRoutine(string clientName, int clientSocketId);
+void sendRoutine(string targetName, string message, 
+                string clientName, int clientSocketId);
+void sendRoutine(string targetName, string message, 
+                string clientName, int clientSocketId);
 
 /* data structs for the server side */
 
@@ -211,19 +217,64 @@ void startTraffic()
  * requests. 
  * assuming valid input from the client.
  */
-void processRequest(string rawCommand)
+void processRequest(string rawCommand, int clinetSocket)
 {
+    vector<string> commands ;
     istringstream iss(rawCommand);
     vector<string> tokens{istream_iterator<string>{iss}, 
                             istream_iterator<string>{}};
 
     string command = tokens[0];
 
-    if (/* condition */)
+    if (command == "create_group")
+    {
+        string groupName = tokens[1];
+        string rawListOfUsers = tokens[2];
+        // Assume clients adds this arg.
+        string clientName = tokens[3];
+        cretateGroupRoutine(groupName, rawListOfUsers, clinetSocket);
+    }
+    else if (command == "who")
+    {
+        // Assuming client feeds his name to request.
+        sting clientName = tokens[1];
+        whoRoutine(clientName, clinetSocket);
+    }
+    else if (command == "send")
+    {
+        string targetName = tokens[1];
+        string message = tokens[2];
+        string clientName = tokens[3];
+        sendRoutine(targetName, message, clientName, clinetSocket);
+    }
+    else if (command == "exit")
     {
         /* code */
     }
+    // invalid command
+    else
+    {
+        print_custom_error("invalid command from the user");
+    }
 }
+
+void cretateGroupRoutine(string groupName, string rawListOfUsers,
+                         int clientSocketId)
+{
+    /* code */
+}
+
+void whoRoutine(string clientName, int clientSocketId)
+{
+    /* code */
+}
+
+void sendRoutine(string targetName, string message, 
+                string clientName, int clientSocketId)
+{
+    /* code */
+}
+
 
 
 void passingData(int socket, string data)
