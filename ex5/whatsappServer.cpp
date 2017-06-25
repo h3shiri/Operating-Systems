@@ -19,7 +19,7 @@ vector<int> gDelClients;
 map<string, vector<string>> gGroups;
 
 /* clieantName :groups*/
-map<string, vector<string>> clientNameToGroups;
+map<string, vector<string>> gClientNameToGroups;
 
 map<string, int> nameToSocket;
 
@@ -314,14 +314,14 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
             gGroups[groupName] = names;
             for ( auto  name : names)
             {
-                auto it = clientNameToGroups.find(clientName);
-                if(it != clientNameToGroups.end())
+                int  count = (int) gClientNameToGroups.count(name);
+                if(count)
                 {
-                    auto fresh = it->second;
+                    vector<string> fresh = gClientNameToGroups[name];
                     fresh.push_back(groupName);
-                    it->second = fresh;
-                } else{
-                    clientNameToGroups[name] = vector<string>(1,groupName);
+                    gClientNameToGroups[name] = fresh;
+                } else {
+                    gClientNameToGroups[name] = vector<string>(1,groupName);
                 }
             }
             string clientMsgSuccess = (RESPONSE_SING + "Group " + groupName +
@@ -374,7 +374,7 @@ void sendRoutine(string targetName, string message,
     {
         if(!group.first.compare(targetName))
         {
-            vector<string> cGroups = clientNameToGroups[clientName];
+            vector<string> cGroups = gClientNameToGroups[clientName];
             for(auto g:cGroups)
             {
                 if(!g.compare(targetName))
@@ -451,8 +451,8 @@ void unRegister(string clientName)
     idToClient.erase(it2);
     auto it3 = nameToSocket.find(clientName);
     nameToSocket.erase(it3);
-    vector<string>& clientGroups = clientNameToGroups[clientName];
-    for( auto group: clientGroups)
+    vector<string>& clientGroups = gClientNameToGroups[clientName];
+    for(auto group: clientGroups)
     {
         auto members = gGroups[group];
         auto iter = members.begin();
@@ -466,6 +466,9 @@ void unRegister(string clientName)
         fresh.erase(fresh.begin() +i);
         gGroups[group] = fresh;
     }
+    auto erIT = gClientNameToGroups.find(clientName);
+    gClientNameToGroups.erase(erIT);
+
     _debugGroupsPrint();
     _debugUserPrint();
 
@@ -500,6 +503,10 @@ void _debugMaster(string terminalInput)
     {
         _debugUserPrint();
     }
+    else if (!terminalInput.compare(USERGROUPS))
+    {
+        _debugNamesToGrousPrint();
+    }
 }
 
 void _debugUserPrint()
@@ -508,7 +515,21 @@ void _debugUserPrint()
     {
         string temp = "";
         temp += (G.first + " : " + to_string(G.second));
-        _printCustomDebug(temp);
+        _printCustomError(temp);
+    }
+}
+
+void _debugNamesToGrousPrint()
+{
+    for (auto const &G : gClientNameToGroups)
+    {
+        string temp = "";
+        temp += (G.first + " : ");
+        for(auto const &M : G.second)
+        {
+            temp += (M + ",");
+        }
+        _printCustomError(temp);
     }
 }
 
@@ -523,7 +544,7 @@ void _debugGroupsPrint()
         {
             temp += (M + ",");
         }
-        _printCustomDebug(temp);
+        _printCustomError(temp);
     }
 }
 //TODO: test this function for proper parsing

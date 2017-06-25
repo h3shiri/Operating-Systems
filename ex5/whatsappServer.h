@@ -22,6 +22,8 @@
 /* debug constants for internal testing */
 #define GROUPPRINT "groups"
 #define USERPRINT "users"
+#define USERGROUPS "usergs"
+
 
 #define F_INIT 1
 #define F_ERROR -1
@@ -72,7 +74,6 @@ void parseStringWithDelim(std::string raw, std::string delim, std::vector<std::s
 void _debugGroupsPrint();
 void _debugUserPrint();
 void _debugMaster(std::string terminalInput);
-
-
+void _debugNamesToGrousPrint();
 
 #endif //EX5_WHATSAPPSERVER_H

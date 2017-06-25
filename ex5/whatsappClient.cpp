@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
         }
     }
     //TODO:register user, get message from sever.
-    int valid = ERROR;
+//    int valid = ERROR;
     while (gRunning) 
     {
         int topSocket = gClientSockfd;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 
 
         /* message from server */
-        if (FD_ISSET(serverSocketFd, &gClientActiveFdsSet));
+        if (FD_ISSET(serverSocketFd, &gClientActiveFdsSet))
         {
             readingFromServer(buffer, sockfd);
         }
@@ -133,9 +133,9 @@ void readingFromServer(char * buffer, int sockfd)
 {
     //input from server
     bzero(buffer, BUFFER_SIZE);
-    _printCustomError("reading from server" + to_string(sockfd) + ": \n");
-    int n = read(sockfd, buffer, BUFFER_SIZE - 1);
-    _printCustomError(("finished reading from server \n"));
+//    _printCustomError("reading from server" + to_string(sockfd));
+    int n = (int) read(sockfd, buffer, BUFFER_SIZE - 1);
+//    _printCustomError(("finished reading from server"));
     //server shut down functions,
     if(n == 0)
     {

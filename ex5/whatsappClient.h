@@ -43,13 +43,4 @@ void treatResponse(string msg);
 
 
 
-
-
-
-
-
-
-
-
-
 #endif //EX5_WHATSAPPCLIENT_H
