@@ -21,7 +21,6 @@ map<string, vector<string>> gGroups;
 /* clieantName :groups*/
 map<string, vector<string>> clientNameToGroups;
 
-map<string,int> clientToId; // remove legacy
 map<string, int> nameToSocket;
 
 /*<socketId, clientName*/
@@ -131,7 +130,9 @@ void startTraffic()
             }
             //TODO: check that the format is fine, server side.
 
-            _printCustomDebug(("client " + idToClient[fresh_sock] + " connected." + "\n"));
+//            _printCustomDebug(("client " + idToClient[fresh_sock] + " connected."));
+            string connectMsg = idToClient[fresh_sock] + " connected.";
+            cout << connectMsg << endl;
         }
         /* logging activity from the server shell  */
         if (FD_ISSET(0, &gActiveFdsSet))
@@ -156,8 +157,7 @@ void startTraffic()
                 // cleaning the buffer prior to reading
                 bzero(inputBuffer, MAX_MSG_LEN);
                 readFromSock = read(fd, inputBuffer, MAX_MSG_LEN);
-                // TODO: remove length debug
-                _printCustomDebug(readFromSock);
+//                _printCustomDebug(readFromSock);
                 //TODO: migrate input to processor.
                 if (readFromSock == 0)
                 {
@@ -172,7 +172,7 @@ void startTraffic()
                     char closer = '\0';
                     inputBuffer[MAX_MSG_LEN] = closer;
                     //TODO: remove debug values
-                    _printCustomDebug((string(inputBuffer) + "socket num: " + to_string(fd) + "\n"));
+//                    _printCustomDebug((string(inputBuffer) + "socket num: " + to_string(fd) + "\n"));
 
                     // casting the buffer perhaps to string ?
                     processRequest(inputBuffer, fd);
@@ -216,7 +216,6 @@ void registerUser(char buffer[], int sockId)
         gClients.push_back(sockId);
         gClientNames.push_back(name);
         idToClient[sockId] = name;
-        clientToId[name] = sockId;
     }
     // In case of malformed content from the user
     else {
@@ -270,7 +269,6 @@ void processRequest(string rawCommand, int clientSocket)
 void createGroupRoutine(string groupName, string rawListOfUsers,
                         int clientSocketId, string clientName)
 {
-    cout<< "create_group routin" << endl;
     // check group name isn't used
     bool success = false;
     bool checkName = true;
@@ -293,7 +291,7 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
         int i = 0;
         for ( auto  name : names)
         {
-            if(registers!= i)
+            if(registers != i)
             {
                 break;
             }
@@ -328,8 +326,8 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
                                        " was created successfully.");
             passingData(clientSocketId, clientMsgSuccess);
             string serverMsgSuccess = (clientName + ": Group " + groupName +
-                                       " was created successfully.\n");
-            cout << serverMsgSuccess;
+                                       " was created successfully.");
+            cout << serverMsgSuccess << endl;
         }
 
     }
@@ -339,8 +337,8 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
         clientMsgError += (groupName + ".");
         passingData(clientSocketId, clientMsgError);
         string serverErrorMsg = (clientName +
-                                 " : ERROR: failed to create group " + groupName + ".\n");
-        cerr << serverErrorMsg;
+                                 " : ERROR: failed to create group " + groupName);
+        cerr << serverErrorMsg << endl;
     }
 }
 
@@ -386,7 +384,7 @@ void sendRoutine(string targetName, string message,
                 for (auto member : group.second) {
 
                     if (member.compare(clientName)) {
-                        int socketId = clientToId[member];
+                        int socketId = nameToSocket[member];
                         passingData(socketId, toSend);
                     }
                 }
@@ -401,7 +399,7 @@ void sendRoutine(string targetName, string message,
             if(!name.compare(targetName))
             {
                 found = true;
-                int socketId = clientToId[name];
+                int socketId = nameToSocket[name];
                 passingData(socketId,toSend);
                 break;
             }
@@ -427,7 +425,6 @@ void sendRoutine(string targetName, string message,
 }
 
 void exitRoutine(string clientName, int clientSocketId) {
-    cout << "exit" << endl;
     unRegister(clientName);
     gDelClients.push_back(clientSocketId);
     string msg = string("Unregistered successfully.");
@@ -441,28 +438,34 @@ void exitRoutine(string clientName, int clientSocketId) {
 
 void unRegister(string clientName)
 {
-    auto it= gClientNames.begin();
+    auto it = gClientNames.begin();
     while((*it).compare(clientName))
     {
         ++it;
     }
     gClientNames.erase(it);
-    int fd = clientToId[clientName];
+    int fd = nameToSocket[clientName];
     auto it2 = idToClient.find(fd);
     idToClient.erase(it2);
-    auto it3 = clientToId.find(clientName);
-    clientToId.erase(it3);
+    auto it3 = nameToSocket.find(clientName);
+    nameToSocket.erase(it3);
     vector<string>& clientGroups = clientNameToGroups[clientName];
     for( auto group: clientGroups)
     {
-        auto iter = gGroups[group].begin();
+        auto members = gGroups[group];
+        auto iter = members.begin();
         int i = 0;
         while((*iter).compare(clientName))
         {
             i++;
+            iter++;
         }
-        gGroups[group].erase(gGroups[group].begin() +i);
+        vector<string> fresh = gGroups[group];
+        fresh.erase(fresh.begin() +i);
+        gGroups[group] = fresh;
     }
+    _debugGroupsPrint();
+    _debugUserPrint();
 
 }
 
