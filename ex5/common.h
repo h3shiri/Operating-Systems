@@ -1,9 +1,11 @@
 #ifndef EX5_COMMON_H
 #define EX5_COMMON_H
 
+#include <string>
 #include <iostream>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sstream>
 
 #define MAX_CLIENTS 10
 #define MAX_MSG_LEN 1024
@@ -15,6 +17,13 @@
 #define ESC_SEQ "EXIT"
 
 using namespace std;
+
+//special sign that will bw the first in msgs from server which sends as a
+// response to client request
+const string RESPONSE_SING  = string("$");
+
+/* server use this sign to tells the client to exit(0) */
+const string EXIT0_SIGN  = string("@");
 
 void _printError(std::string msg)
 {

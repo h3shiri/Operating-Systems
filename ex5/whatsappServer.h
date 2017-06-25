@@ -37,6 +37,13 @@ void startListening(int sockfd, int *resFlag);
  */
 void startTraffic();
 
+void unRegister(string clientName);
+
+
+/* calls after "EXIT" is typed*/
+void shutDown();
+
+
 /**
  * the driver function for the various commands processing the clients
  * requests.
@@ -49,13 +56,14 @@ void createGroupRoutine(std::string groupName, std::string rawListOfUsers,
 
 void whoRoutine(std::string clientName, int clientSocketId);
 
-void sendRoutine(std::string targetName, std::string message,
-                 std::string clientName, int clientSocketId);
 
 void sendRoutine(std::string targetName, std::string message,
                  std::string clientName, int clientSocketId);
 
-void exitRoutine(std::string clientName, int clientSocketId);
+void sendRoutine(std::string targetName, std::string message,
+                 std::string clientName, int clientSocketId);
+
+void exitRoutine(string clientName, int clientSocketId);
 
 void registerUser(char buffer[], int sockId);
 

@@ -1,7 +1,8 @@
 #include <cstring>
-#include <sstream>
 #include "whatsappServer.h"
 #include "common.h"
+#include <algorithm>
+
 
 using namespace std;
 
@@ -13,10 +14,19 @@ vector<int> gClients;
 vector<string> gClientNames;
 vector<int> gDelClients;
 
+
 /* the groups online in this server */
 map<string, vector<string>> gGroups;
 
+/* clieantName :groups*/
+map<string, vector<string>> clientNameToGroups;
+
+map<string,int> clientToId; // remove legacy
 map<string, int> nameToSocket;
+
+/*<socketId, clientName*/
+map<int,string> idToClient;
+
 
 // actual relevant socket address.
 struct sockaddr_in gMyAddr;
@@ -35,7 +45,6 @@ int gSockfd;
 
 /* A set for the active fds */
 fd_set gActiveFdsSet;
-
 
 // TODO: make sure errors comply with the expected format
 
@@ -66,7 +75,6 @@ int initServer(const char *port)
     }
     gMaxSocket = gSockfd;
     startTraffic();
-
     return F_SUCCESS;
 }
 
@@ -97,6 +105,8 @@ void startTraffic()
             string eMsg = "select";
             _printError(eMsg);
         }
+        //TODO: check does enter more then once per user.
+        // registering new users mostly
         if (FD_ISSET(gSockfd, &gActiveFdsSet))
         {
             if ((fresh_sock = accept(gSockfd, (struct sockaddr *) &gMyAddr, (socklen_t *) &sSize)) < 0)
@@ -105,6 +115,7 @@ void startTraffic()
                 _printError(eMsg);
             }
             // initial pass letting the socket now, session is established.
+            //TO DO add check of duplicate name!
             if (send(fresh_sock, "ALIVE", 5, 0) != 5)
             {
                 _printCustomError("issue in establishing communication");
@@ -119,7 +130,8 @@ void startTraffic()
 
             }
             //TODO: check that the format is fine, server side.
-            cout << "client " << fresh_sock << " connected." << endl;
+
+            _printCustomDebug(("client " + idToClient[fresh_sock] + " connected." + "\n"));
         }
         /* logging activity from the server shell  */
         if (FD_ISSET(0, &gActiveFdsSet))
@@ -128,7 +140,7 @@ void startTraffic()
             getline(cin, terminalInput);
             
             //TODO: check whether u should echo all the terminal input?
-            cout << terminalInput << endl;
+//            cout << terminalInput << endl;
             if (!terminalInput.compare(ESC_SEQ))
             {
                 gBreakFlag = true;
@@ -146,25 +158,25 @@ void startTraffic()
                 readFromSock = read(fd, inputBuffer, MAX_MSG_LEN);
                 // TODO: remove length debug
                 _printCustomDebug(readFromSock);
-                //TODO: migrate to input processor.
+                //TODO: migrate input to processor.
                 if (readFromSock == 0)
                 {
                     // client has no input
                     //TODO: check he actually disconnected.
                     close(fd);
+                    unRegister(idToClient[fd]);
                     gDelClients.push_back(fd);
                 }
-                else if (readFromSock > 0)
+                if (readFromSock > 0)
                 {
                     char closer = '\0';
                     inputBuffer[MAX_MSG_LEN] = closer;
                     //TODO: remove debug values
-                    cout << inputBuffer << "socket num:" << fd << endl;
-                    flush(cout);
+                    _printCustomDebug((string(inputBuffer) + "socket num: " + to_string(fd) + "\n"));
 
                     // casting the buffer perhaps to string ?
                     processRequest(inputBuffer, fd);
-                    send(fd, inputBuffer, strlen(inputBuffer), 0);
+                    //send(fd, inputBuffer, strlen(inputBuffer), 0);
                 }
                 else
                 {
@@ -172,13 +184,21 @@ void startTraffic()
                 }
             }
         }
-        /* clearing the closed clients */
-        for (auto fd : gDelClients)
+        for(auto fd:gDelClients)
         {
-            gClients.erase(remove(gClients.begin(), gClients.end(), fd), gClients.end());
+            gClients.erase(remove(gClients.begin(),gClients.end(),fd),gClients.end());
         }
         gDelClients.clear();
     }
+    shutDown();
+}
+
+
+void shutDown()
+{
+    //TO DO end only current task
+    cout<<"EXIT command is typed: server is shutting down" << endl;
+    exit(0);
 }
 
 // buffer contains the init data.
@@ -195,6 +215,8 @@ void registerUser(char buffer[], int sockId)
         nameToSocket[name] = sockId;
         gClients.push_back(sockId);
         gClientNames.push_back(name);
+        idToClient[sockId] = name;
+        clientToId[name] = sockId;
     }
     // In case of malformed content from the user
     else {
@@ -248,7 +270,9 @@ void processRequest(string rawCommand, int clientSocket)
 void createGroupRoutine(string groupName, string rawListOfUsers,
                         int clientSocketId, string clientName)
 {
+    cout<< "create_group routin" << endl;
     // check group name isn't used
+    bool success = false;
     bool checkName = true;
     if((std::find(gClientNames.begin(), gClientNames.end(), groupName)
      != gClientNames.end()) || gGroups.count(groupName))
@@ -260,26 +284,206 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
         vector<string> names;
         string delim = ",";
         parseStringWithDelim(rawListOfUsers, delim, &names);
-        //TODO: remove possible duplicates from names, plus user name.
         names.push_back(clientName);
-        gGroups[groupName] = names;
-        string clientMsgSuccess = ("Group " + groupName + 
-        " was created successfully.\n");
-        passingData(clientSocketId, clientMsgSuccess);
-        string serverMsgSuccess = (clientName + " : Group " + groupName +
-                                " was created successfully.\n");
-        cout << serverMsgSuccess; 
+        //Temove possible duplicates from names, plus user name.
+        sort(names.begin(), names.end());
+        names.erase(std::unique(names.begin(), names.end()), names.end());
+        //check that clients in group are registered
+        int registers = 0;
+        int i = 0;
+        for ( auto  name : names)
+        {
+            if(registers!= i)
+            {
+                break;
+            }
+            for(auto client : gClientNames)
+            {
+                if(!client.compare(name))
+                {
+                    registers++;
+                    break;
+                }
+            }
+            i++;
+        }
+        if(registers == (int) names.size())
+        {
+            success = true;
+        }
+        if(success)
+        {
+            gGroups[groupName] = names;
+            for ( auto  name : names)
+            {
+                auto it = clientNameToGroups.find(clientName);
+                if(it != clientNameToGroups.end())
+                {
+                    (it->second).push_back(groupName);
+                } else{
+                    clientNameToGroups[name] = vector<string>(1,groupName);
+                }
+            }
+            string clientMsgSuccess = (RESPONSE_SING + "Group " + groupName +
+                                       " was created successfully.");
+            passingData(clientSocketId, clientMsgSuccess);
+            string serverMsgSuccess = (clientName + ": Group " + groupName +
+                                       " was created successfully.\n");
+            cout << serverMsgSuccess;
+        }
+
     }
-    else
+    if(!success)
     {
-        string clientMsgError = "ERROR: failed to create group ";
-        clientMsgError += (groupName + ".\n");
+        string clientMsgError = RESPONSE_SING + "ERROR: failed to create group ";
+        clientMsgError += (groupName + ".");
         passingData(clientSocketId, clientMsgError);
-        string serverErrorMsg = (clientName + 
-            " : ERROR: failed to create group " + groupName + ".\n");
-        cerr << serverErrorMsg;  
+        string serverErrorMsg = (clientName +
+                                 " : ERROR: failed to create group " + groupName + ".\n");
+        cerr << serverErrorMsg;
     }
 }
+
+void whoRoutine(string clientName, int clientSocketId)
+{
+    sort(gClientNames.begin(),gClientNames.end());
+    cout<< clientName <<": Requests the currently connected client names."<<endl;
+    string clientsList = RESPONSE_SING;
+    // to debudg
+    if(gClientNames.size() == 0 )
+    {
+        cerr << "empty clients list, something wrong" <<endl;
+    }
+    for( auto str : gClientNames)
+    {
+        clientsList += str;
+        clientsList += ",";
+    }
+    clientsList[clientsList.length() -1]  = '.';
+    passingData(clientSocketId, clientsList);
+
+}
+
+void sendRoutine(string targetName, string message,
+                 string clientName, int clientSocketId)
+{
+    cout <<"send routine" <<endl;
+    bool found  = false;
+    string toSend = clientName + ": " +message;
+    for(auto group :gGroups)
+    {
+        if(!group.first.compare(targetName))
+        {
+            vector<string> cGroups = clientNameToGroups[clientName];
+            for(auto g:cGroups)
+            {
+                if(!g.compare(targetName))
+                {
+                    found = true;
+                }
+            }
+            if(found) {
+                for (auto member : group.second) {
+
+                    if (member.compare(clientName)) {
+                        int socketId = clientToId[member];
+                        passingData(socketId, toSend);
+                    }
+                }
+            }
+            break;
+        }
+    }
+    if(!found)
+    {
+        for(auto name : gClientNames)
+        {
+            if(!name.compare(targetName))
+            {
+                found = true;
+                int socketId = clientToId[name];
+                passingData(socketId,toSend);
+                break;
+            }
+        }
+    }
+    string clientMsg = RESPONSE_SING;
+    unsigned char a = '"';
+    if(found)
+    {
+        clientMsg+=string("Send successfully.");
+        cout << clientName << ": " << a << message << a << " was send "
+                "successfully to " << targetName << "." <<endl;
+    } else
+    {
+        string msg = string("ERROR: failed to send.");
+        clientMsg += msg;
+        cerr << clientName << ": " << msg << a <<message << a <<" to " <<targetName
+             <<"." <<endl;
+    }
+    passingData(clientSocketId, clientMsg);
+
+
+}
+
+void exitRoutine(string clientName, int clientSocketId) {
+    cout << "exit" << endl;
+    unRegister(clientName);
+    gDelClients.push_back(clientSocketId);
+    string msg = string("Unregistered successfully.");
+    string clientMsg = RESPONSE_SING + EXIT0_SIGN + msg;
+    passingData(clientSocketId, clientMsg);
+    close(clientSocketId);
+    cout << clientName << ": " << msg << endl;
+}
+
+
+
+void unRegister(string clientName)
+{
+    auto it= gClientNames.begin();
+    while((*it).compare(clientName))
+    {
+        ++it;
+    }
+    gClientNames.erase(it);
+    int fd = clientToId[clientName];
+    auto it2 = idToClient.find(fd);
+    idToClient.erase(it2);
+    auto it3 = clientToId.find(clientName);
+    clientToId.erase(it3);
+    vector<string>& clientGroups = clientNameToGroups[clientName];
+    for( auto group: clientGroups)
+    {
+        auto iter = gGroups[group].begin();
+        int i = 0;
+        while((*iter).compare(clientName))
+        {
+            i++;
+        }
+        gGroups[group].erase(gGroups[group].begin() +i);
+    }
+
+}
+
+void startBinding(int sockfd, int *resFlag)
+{
+    if (bind(sockfd, (struct sockaddr *) &gMyAddr, sizeof(gMyAddr)) < 0)
+    {
+        _printError("bind");
+        *resFlag = F_ERROR;
+    }
+}
+
+void startListening(int sockfd, int *resFlag)
+{
+    if (listen(sockfd, MAX_CLIENTS) < 0)
+    {
+        _printError("listen");
+        *resFlag = F_ERROR;
+    }
+}
+
 
 void _debugMaster(string terminalInput)
 {
@@ -303,7 +507,6 @@ void _debugUserPrint()
     }
 }
 
-
 /** use to print all the current groups in memory */
 void _debugGroupsPrint()
 {
@@ -318,41 +521,6 @@ void _debugGroupsPrint()
         _printCustomDebug(temp);
     }
 }
-
-void whoRoutine(string clientName, int clientSocketId)
-{
-
-}
-
-void sendRoutine(string targetName, string message,
-                 string clientName, int clientSocketId)
-{
-    /* code */
-}
-
-void exitRoutine(string clientName, int clinetSocketId)
-{
-    /* code */
-}
-
-void startBinding(int sockfd, int *resFlag)
-{
-    if (bind(sockfd, (struct sockaddr *) &gMyAddr, sizeof(gMyAddr)) < 0)
-    {
-        _printError("bind");
-        *resFlag = F_ERROR;
-    }
-}
-
-void startListening(int sockfd, int *resFlag)
-{
-    if (listen(sockfd, MAX_CLIENTS) < 0)
-    {
-        _printError("listen");
-        *resFlag = F_ERROR;
-    }
-}
-
 //TODO: test this function for proper parsing
 void parseStringWithDelim(string raw, string delim, vector<string>* res)
 {
@@ -362,6 +530,10 @@ void parseStringWithDelim(string raw, string delim, vector<string>* res)
         token = raw.substr(0, pos);
         res->insert(res->begin(), token);
         raw.erase(0, pos + delim.length());
+    }
+    if(raw.length() !=0)
+    {
+        res->insert(res->begin(),raw);
     }
 }
 
