@@ -317,7 +317,9 @@ void createGroupRoutine(string groupName, string rawListOfUsers,
                 auto it = clientNameToGroups.find(clientName);
                 if(it != clientNameToGroups.end())
                 {
-                    (it->second).push_back(groupName);
+                    auto fresh = it->second;
+                    fresh.push_back(groupName);
+                    it->second = fresh;
                 } else{
                     clientNameToGroups[name] = vector<string>(1,groupName);
                 }
