@@ -2,6 +2,7 @@ CC=g++
 flags= -Wall -g -std=c++11
 # all_headers = Block.h BlockStack.h
 all_cpp = whatsappClient.cpp whatsappServer.cpp
+all_headers = whatsappServer.h whatsappClient.h common.h 
 
 default: clean whatsappServer whatsappClient
 
@@ -17,8 +18,8 @@ whatsappServer: whatsappServer.o
 whatsappClient: whatsappClient.o
 	$(CC) $(flags) whatsappClient.o -o whatsappClient
 
-tar: Makefile README $(all_cpp)
-	tar -cvf ex5.tar Makefile README $(all_cpp)
+tar: Makefile README $(all_cpp) $(all_headers)
+	tar -cvf ex5.tar Makefile README $(all_cpp) $(all_headers)
 
 clean:
 	rm -f *.o ex5.tar whatsappServer whatsappClient whatsappClientTemp *~ *core 
