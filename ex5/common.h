@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sstream>
+#include <regex>
 
 #define MAX_CLIENTS 10
 #define MAX_MSG_LEN 1024

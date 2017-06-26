@@ -54,7 +54,7 @@ int initServer(const char *port)
     host_name[MAXHOSTNAMELEN] = '\0';
     struct hostent *host = NULL;
     gethostname(host_name, MAXHOSTNAMELEN);
-    host = gethostbyname(hostM); // TODO:  mend and test on server.
+    host = gethostbyname(host_name); // TODO:  mend and test on server.
 
     gMyAddr.sin_family = AF_INET;
     gSockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -146,7 +146,7 @@ void startTraffic()
             {
                 gBreakFlag = true;
             }
-            _debugMaster(terminalInput);
+            // _debugMaster(terminalInput);
         }
 
         /* parsing clients for content */
@@ -158,6 +158,7 @@ void startTraffic()
                 bzero(inputBuffer, MAX_MSG_LEN);
                 readFromSock = read(fd, inputBuffer, MAX_MSG_LEN);
 //                _printCustomDebug(readFromSock);
+                
                 //TODO: migrate input to processor.
                 if (readFromSock == 0)
                 {
@@ -171,12 +172,8 @@ void startTraffic()
                 {
                     char closer = '\0';
                     inputBuffer[MAX_MSG_LEN] = closer;
-                    //TODO: remove debug values
-//                    _printCustomDebug((string(inputBuffer) + "socket num: " + to_string(fd) + "\n"));
 
-                    // casting the buffer perhaps to string ?
                     processRequest(inputBuffer, fd);
-                    //send(fd, inputBuffer, strlen(inputBuffer), 0);
                 }
                 else
                 {
@@ -196,7 +193,6 @@ void startTraffic()
 
 void shutDown()
 {
-    //TO DO end only current task
     cout<<"EXIT command is typed: server is shutting down" << endl;
     exit(0);
 }
@@ -225,45 +221,57 @@ void registerUser(char buffer[], int sockId)
 
 void processRequest(string rawCommand, int clientSocket)
 {
-    vector<string> commands;
-    istringstream iss(rawCommand);
-    vector<string> tokens{istream_iterator<string>{iss},
-                          istream_iterator<string>{}};
+    regex send_reg("\\bsend ([a-zA-Z0-9]+) (.*) ([a-zA-Z0-9]+)\\b");
+    smatch m;
+    string targetName;
+    string message;
+    string clientName;
+    if(regex_match(rawCommand, m, send_reg, regex_constants::match_continuous))
+    {
 
-    string command = tokens[0];
-
-    if (command == "create_group")
-    {
-        string groupName = tokens[1];
-        string rawListOfUsers = tokens[2];
-        // Assume clients adds this arg.
-        string clientName = tokens[3];
-        _printCustomDebug((groupName + "," + rawListOfUsers + "," + clientName));
-        createGroupRoutine(groupName, rawListOfUsers, clientSocket, clientName);
-    }
-    else if (command == "who")
-    {
-        // Assuming client feeds his name to request.
-        string clientName = tokens[1];
-        whoRoutine(clientName, clientSocket);
-    }
-    else if (command == "send")
-    {
-        string targetName = tokens[1];
-        string message = tokens[2];
-        string clientName = tokens[3];
+        targetName = m[1].str();
+        message  = m[2].str();
+        clientName = m[3].str();
         sendRoutine(targetName, message, clientName, clientSocket);
+
     }
-    else if (command == "exit")
-    {
-        string clientName = tokens[1];
-        exitRoutine(clientName, clientSocket);
+    else{
+        vector<string> commands;
+        istringstream iss(rawCommand);
+        vector<string> tokens{istream_iterator<string>{iss},
+                              istream_iterator<string>{}};
+
+        string command = tokens[0];
+
+        if (command == "create_group")
+        {
+            string groupName = tokens[1];
+            string rawListOfUsers = tokens[2];
+            // Assume clients adds this arg.
+            string clientName = tokens[3];
+            // _printCustomDebug((groupName + "," + rawListOfUsers + "," + clientName));
+            createGroupRoutine(groupName, rawListOfUsers, clientSocket, clientName);
+        }
+        else if (command == "who")
+        {
+            // Assuming client feeds his name to request.
+            string clientName = tokens[1];
+            whoRoutine(clientName, clientSocket);
+        }
+
+        else if (command == "exit")
+        {
+            string clientName = tokens[1];
+            exitRoutine(clientName, clientSocket);
+        }
+            // invalid command
+        else
+        {
+            _printCustomError("invalid command from the user");
+        }
+
     }
-        // invalid command
-    else
-    {
-        _printCustomError("invalid command from the user");
-    }
+
 }
 
 void createGroupRoutine(string groupName, string rawListOfUsers,
@@ -367,7 +375,6 @@ void whoRoutine(string clientName, int clientSocketId)
 void sendRoutine(string targetName, string message,
                  string clientName, int clientSocketId)
 {
-    cout <<"send routine" <<endl;
     bool found  = false;
     string toSend = clientName + ": " +message;
     for(auto group :gGroups)
@@ -468,10 +475,6 @@ void unRegister(string clientName)
     }
     auto erIT = gClientNameToGroups.find(clientName);
     gClientNameToGroups.erase(erIT);
-
-    _debugGroupsPrint();
-    _debugUserPrint();
-
 }
 
 void startBinding(int sockfd, int *resFlag)

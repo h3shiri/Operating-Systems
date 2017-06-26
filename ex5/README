@@ -5,6 +5,9 @@ EX: 5
 FILES:
 whatsappServer.cpp -- the relevant code for the server side.
 whatsappClient.cpp -- the code for the client side.
+whatsappServer.h -- the appropriate header for the server.
+whatsappClient.h -- the appropriate header for the client.
+common.h -- the appropriate header for common stuff for both.
 Makefile -- supporting various commands, such as creating the exexutables.
 README -- infromation on this project and answers to theoretical questoins.
 
@@ -18,8 +21,60 @@ Design:
       Architecture 
 =========================
 
+The architecture follows the specs of the assingment.
+The client has a server open connected to the server, 
+while the server has an array of sockets opened appropriately for the clients. 
+
 
 ANSWERS:
 =========================
   Theoretical Questions
 =========================
+Theoretical part
+
+1.In order to add support to the command "leave_group <group name>":
+We will add anothe regex in the client command parsing function that will
+identify this command. If the group name is not valid - contains not only
+letters and digits, that client will send an appropriate message to cerr
+and will not send it the the server.
+If the command is valid the message will be sent to the server:
+The sever a map gGroups which contains pairs of group_name : vector of group members,
+the server will check if group name is a real group and if the client that sends
+the command is a member of the group indicates by "group name".
+If it is not, it will print an error message to the cerr and send an error
+message to the client (with the special RESPONSE_SIGN that will cause the
+message to be printed to the cerr of the client).
+If the group exist and client is a member of it, the client will be removed
+from the vector of clients group in gGroups, if the vector is empty now,
+the pair <group name, vector<string> group members will be removed
+from the gGroups map. In addition there is a another map  - clientsToGroups
+that maps a client name to vector<string> groupsOfClients. The group name
+will be removed from the vector of the client in clientsToGroups.
+In case of success an appropriate message will be send to the client and print
+to the cout.
+
+
+2.We prefer TCP in this exercise because: In contrary to UDP, the send of messages
+in TCP is orderred. In our case the order is important.
+Secondly, TCP is more reliabale - We want be sure that whole
+command will be received on the listening side.
+
+3.
+(1) commonly DNS - DNS consists of small queries saying things like
+"what is the IP number for ynet.com?", and the responses are correspondingly small.
+Computers make a lot of these queries, so they should be made efficiently, but if they get lost en route, it's easy to time out and re-send them.
+UDP is appropriate when you have small messages which you can afford to lose, and would like to send them as efficiently as possible. One reason you might be able to afford to lose them is because you can re-send them if they get lost.
+Video streaming - suppose if some packet(frame/sequence) is missing we can
+still understand the content.
+(2) Video -  Videos are large files and it will take a lot of time to
+stream it using the TCP, which will decrease the user's experience.
+But video is collection of frames, so we can use UDP that is much faster
+and we can afford to lose some frames without affecting user's experience
+
+4.
+maybe we can use a backup - every a few seconds we can save the data of the
+server in an outer place, like a logfile or the disk, such as if the sever
+exits we will take the backup and load the data to a new server.
+When the clients will detect that the server close its socket that will try
+to reconnect to the new server.
+In this way only the data from the last backup will be lost.

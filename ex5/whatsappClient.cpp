@@ -1,7 +1,6 @@
 #include <string.h>
 #include "whatsappClient.h"
 #include "common.h"
-#include <regex>
 #include <boost/algorithm/string.hpp>
 
 
@@ -198,18 +197,7 @@ void treatResponse(string msg)
         cout<< msg << endl;
     }
 
-//    regex groupFail("ERROR: failed to create group [0-9a-zA-Z]+\\.");
-//    regex groupSucces("Group [0-9a-zA-Z]+ was created successfully.");
-//    if(regex_match(msg,groupFail))
-//    {
-//        cerr<< msg << endl;
-//        return;
-//    }
-//    if(regex_match(msg,groupSucces))
-//    {
-//       cout <<msg << endl;
-//        return;
-//    }
+
 }
 
 
